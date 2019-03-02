@@ -7,6 +7,7 @@ export interface AppConfiguration extends IConfig {
   port: number
   postgres: ConnectionOptions
   redis: ClientOpts
+  secret: string
 }
 
 const conf: AppConfiguration = require('config')

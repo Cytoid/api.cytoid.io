@@ -1,6 +1,5 @@
-import { database, redis } from '../db'
+import { getManager } from "typeorm"
 
 export default class BaseController {
-  public db = database
-  public redis = redis
+  public db = getManager()
 }
