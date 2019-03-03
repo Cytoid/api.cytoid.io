@@ -1,13 +1,18 @@
 import 'reflect-metadata' // this shim is required
-import { createExpressServer } from 'routing-controllers'
+import { useExpressServer } from 'routing-controllers'
+import express = require('express')
 
-import * as controllers from './controllers'
 import logger from './logger'
 import conf from './conf'
 import { redis } from './db'
 
-const app = createExpressServer({
+import * as controllers from './controllers'
+import * as middlewares from './middlewares'
+
+const app = express()
+useExpressServer(app, {
   controllers: Object.values(controllers),
+  middlewares: Object.values(middlewares),
 })
 
 app.set('trust proxy', 1)
