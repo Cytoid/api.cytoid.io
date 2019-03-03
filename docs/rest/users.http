@@ -1,4 +1,11 @@
-GET {{host}}/users
+POST {{host}}/users
 Accept: application/json
+Content-Type: application/json; charset=utf-8
 
+{
+"email": "example@example.com",
+"name": "death",
+  "password": "dfadsfasdfasdf",
+  "irrelevent": "d"
+}
 ###

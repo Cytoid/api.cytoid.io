@@ -4,6 +4,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from 'typeorm'
+import PasswordManager from '../utils/password'
+const passwordManager = new PasswordManager()
 
 @Entity('users')
 export default class User {
@@ -15,9 +17,6 @@ export default class User {
 
   @Column()
   public name: string
-
-  @Column('bytea')
-  public password: Buffer
 
   @Column({ unique: true, nullable: true })
   public email?: string
@@ -33,4 +32,15 @@ export default class User {
 
   @Column({ name: 'date_last_active' })
   public lastActive: Date
+
+  @Column('bytea')
+  private password: Buffer
+
+  public setPassword(password: string) {
+    return passwordManager.hashPassword(password)
+      .then((passwordHash) => {
+        this.password = passwordHash
+        return passwordHash
+      })
+  }
 }
