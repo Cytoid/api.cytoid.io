@@ -2,7 +2,7 @@
   "name": "api.cytoid.io",
   "private": true,
   "engines": {
-    "node": "~10.5.2"
+    "node": ">10.5.2"
   },
   "dependencies": {
     "axios": "^0.18.0",
@@ -26,9 +26,12 @@
     "@types/connect-redis": "^0.0.8",
     "@types/express": "^4.16.1",
     "@types/express-session": "^1.15.12",
+    "@types/jest": "^24.0.9",
     "@types/morgan": "^1.7.35",
     "@types/node": "^11.10.4",
     "@types/redis": "^2.8.10",
+    "jest": "^24.1.0",
+    "ts-jest": "^24.0.0",
     "ts-node": "^8.0.2",
     "tslint": "^5.13.1",
     "typescript": "^3.3.3333"
@@ -38,6 +41,7 @@
     "lint": "tslint src/**/*.ts",
     "start": "node dist/server.js",
     "serve": "ts-node src/server.ts",
+    "test": "jest",
     "db": "typeorm"
   }
 }
