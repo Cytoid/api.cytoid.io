@@ -13,7 +13,7 @@ export interface IRecordDetails {
 export enum GameplayMods {
 }
 
-@Entity()
+@Entity('records')
 export default class Record {
   @PrimaryGeneratedColumn()
   public id: number
