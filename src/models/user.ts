@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer'
 import {
   Column,
   CreateDateColumn,
@@ -31,10 +32,16 @@ export default class User {
   public registrationDate: Date
 
   @Column({ name: 'date_last_active' })
-  public lastActive: Date
+  private lastActive: Date
 
+  @Exclude()
   @Column('bytea')
   private password: Buffer
+
+  public activates(): Date {
+    this.lastActive = new Date()
+    return this.lastActive
+  }
 
   public setPassword(password: string) {
     return passwordManager.hashPassword(password)

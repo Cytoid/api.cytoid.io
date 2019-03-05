@@ -12,6 +12,8 @@ export default class ErrorHandler implements ExpressErrorMiddlewareInterface {
     }
     if (error.status && error.status < 500) {
       res.status(error.status).send(error.message)
+      return
     }
+    next(error)
   }
 }

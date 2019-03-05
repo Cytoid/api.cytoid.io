@@ -3,7 +3,8 @@ Accept: application/json
 Content-Type: application/json; charset=utf-8
 
 {
-"email": "example@example.com",
+"email": "example@examgpolfge.com",
+  "uid": "adfasdf",
 "name": "death",
   "password": "dfadsfasdfasdf",
   "irrelevent": "d"

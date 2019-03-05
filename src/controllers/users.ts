@@ -4,7 +4,7 @@ import {
   MinLength, validate,
 } from 'class-validator'
 import {
-  Body,
+  Body, ForbiddenError,
   Get,
   JsonController, Post,
 } from 'routing-controllers'
@@ -15,6 +15,10 @@ import BaseController from './base'
 class NewUser {
   @IsString()
   public name: string
+
+  @IsString()
+  @IsOptional()
+  public uid: string
 
   @MinLength(8)
   public password: string
@@ -29,9 +33,11 @@ class NewUser {
   public async create(): Promise<User> {
     const user = new User()
     user.name = this.name
-    user.setPassword(this.password)
+    await user.setPassword(this.password)
     user.email = this.email
-    user.birthday = new Date(Date.parse(this.birthday))
+    user.uid = this.uid
+    user.birthday = this.birthday ? new Date(Date.parse(this.birthday)) : null
+    user.activates()
     return user
   }
 }
@@ -40,8 +46,16 @@ class NewUser {
 export default class UserController extends BaseController {
   public repo = getRepository(User)
   @Post('/')
-  public createUser(@Body({ validate: true }) user: NewUser) {
-    console.log(user)
-    return 'tgg'
+  public createUser(@Body() newUser: NewUser): Promise<User|string> {
+    return newUser.create()
+      .then((user) => this.db.save(user))
+      .catch((error) => {
+        if (error.constraint === 'USER_EMAIL_UNIQUE') {
+          throw new ForbiddenError('duplicated email address')
+        } else if (error.constraint === 'USER_UID_UNIQUE') {
+          throw new ForbiddenError('duplicated uid')
+        }
+        return 'error'
+      })
   }
 }
