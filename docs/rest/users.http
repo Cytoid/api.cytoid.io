@@ -1,11 +1,17 @@
+// Get the current user
 GET {{host}}/users
 Accept: application/json
 Authorization: Bearer {{jwt}}
 
 ###
 
+// Get a specific user using uid or id
+GET {{host}}/users/cytoid
+Accept: application/json
 
+###
 
+// Register a new user
 POST {{host}}/users
 Accept: application/json
 Content-Type: application/json; charset=utf-8
@@ -16,4 +22,5 @@ Content-Type: application/json; charset=utf-8
 "name": "okCytoidTesting",
   "password": "testingtesting"
 }
+
 ###
