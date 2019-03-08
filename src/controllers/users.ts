@@ -37,7 +37,6 @@ class NewUser {
     user.email = this.email
     user.uid = this.uid
     user.birthday = this.birthday ? new Date(Date.parse(this.birthday)) : null
-    user.activates()
     return user
   }
 }

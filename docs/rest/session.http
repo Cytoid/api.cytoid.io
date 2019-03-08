@@ -1,11 +1,9 @@
-POST {{host}}/users
+PUT {{host}}/session
 Accept: application/json
 Content-Type: application/json; charset=utf-8
 
 {
-"email": "test@cytoid.io",
-  "uid": "cytoid",
-"name": "okCytoidTesting",
+  "username": "cytoid",
   "password": "testingtesting"
 }
 ###

@@ -7,7 +7,6 @@ CREATE TABLE "users" (
   "email_verified"    boolean,
   "birthday"          TIMESTAMP,
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
-  "date_last_active"  TIMESTAMP NOT NULL,
   CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid"),
   CONSTRAINT "USER_EMAIL_UNIQUE" UNIQUE ("email")
 );
