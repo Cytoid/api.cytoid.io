@@ -19,7 +19,7 @@ passport.use(
 )
 export function signJWT(payload: any): Promise<string> {
   return new Promise((resolve, reject) => {
-    jwt.sign(payload, JWTOptions.secretOrKey, {
+    jwt.sign({sub: payload}, JWTOptions.secretOrKey, {
       audience: JWTOptions.audience,
       issuer: JWTOptions.issuer,
       expiresIn: '10d',
@@ -52,7 +52,21 @@ passport.serializeUser((user: User, done) => {
 export default passport
 
 import { Action } from "routing-controllers"
+import {Middleware} from 'koa'
 
 export async function currentUserChecker(action: Action) {
-  console.log(action)
+  return action.context.state.user
+}
+
+const authorizationCheckers: Middleware[] = [
+  passport.session(),
+  passport.authenticate('jwt'),
+]
+export function authorizationChecker(action: Action, roles: string[]) {
+  for (const authenticator of authorizationCheckers) {
+    authenticator(action.context, () => Promise.resolve())
+    if (action.context.state.user)
+      break
+  }
+  return action.context.state.user
 }

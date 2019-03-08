@@ -8,8 +8,15 @@ import {
 import PasswordManager from '../utils/password'
 const passwordManager = new PasswordManager()
 
+export interface IUser {
+  id: string
+  uid?: string
+  name: string
+  email?: string
+}
+
 @Entity('users')
-export default class User {
+export default class User implements IUser {
   @PrimaryGeneratedColumn('uuid')
   public id: string
 

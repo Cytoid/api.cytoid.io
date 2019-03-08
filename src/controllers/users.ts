@@ -4,12 +4,14 @@ import {
   MinLength, validate,
 } from 'class-validator'
 import {
-  Body, ForbiddenError,
+  Authorized,
+  Body,
+  CurrentUser, ForbiddenError,
   Get,
   JsonController, Post,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
-import User from '../models/user'
+import User, {IUser} from '../models/user'
 import BaseController from './base'
 
 class NewUser {
@@ -44,6 +46,13 @@ class NewUser {
 @JsonController('/users')
 export default class UserController extends BaseController {
   public repo = getRepository(User)
+
+  @Get('/')
+  @Authorized()
+  public getCurrentUser(@CurrentUser() user: IUser) {
+    return this.repo.findOne(user.id)
+  }
+
   @Post('/')
   public createUser(@Body() newUser: NewUser): Promise<User|string> {
     return newUser.create()

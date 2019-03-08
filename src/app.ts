@@ -14,9 +14,8 @@ const app = new Koa()
 import * as bodyParser from 'koa-bodyparser'
 app.use(bodyParser())
 
-import passport, {currentUserChecker} from './authentication'
+import passport, {authorizationChecker, currentUserChecker} from './authentication'
 app.use(passport.initialize())
-app.use(passport.session())
 
 app.keys = [conf.secret]
 
@@ -37,6 +36,7 @@ app.use(session({
 useKoaServer(app, {
   controllers: Object.values(controllers),
   middlewares: Object.values(middlewares),
+  authorizationChecker: authorizationChecker,
   currentUserChecker: currentUserChecker,
 })
 
