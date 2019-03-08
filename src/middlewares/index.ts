@@ -1,1 +1,3 @@
-export { default as ErrorHandler } from './ErrorHandler'
+export function dummy() {
+  
+}

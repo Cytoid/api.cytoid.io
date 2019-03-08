@@ -1,56 +1,41 @@
 import 'reflect-metadata' // this shim is required
-import { useExpressServer } from 'routing-controllers'
-import express = require('express')
+import { createKoaServer } from 'routing-controllers'
 
 import logger from './logger'
 import conf from './conf'
-import { redis } from './db'
+import './db'
 
 import * as controllers from './controllers'
 import * as middlewares from './middlewares'
 
-const app = express()
-useExpressServer(app, {
+const app = createKoaServer({
   controllers: Object.values(controllers),
   middlewares: Object.values(middlewares),
 })
 
-app.set('trust proxy', 1)
+app.keys = [conf.secret]
 
-import session = require('express-session')
-import connectRedis = require('connect-redis')
-const RedisStore = connectRedis(session)
+const session = require('koa-session')
 app.use(session({
-  store: new RedisStore({
-    client: redis
-  }),
-  secret: conf.secret,
-  /*
-   Forces the session to be saved back to the session store,
-   even if the session was never modified during the request.
-   Check with your store if it implements the touch method.
-   If it does, then you can safely set resave: false.
-   */
-  resave: false,
-  /*
-   Forces a session that is "uninitialized" to be saved to the store.
-   */
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-  },
-  /*
-   Control the result of unsetting req.session
-   */
-  unset: 'destroy',
-}))
+  key: 'cytoid:sess', /** (string) cookie key (default is koa:sess) */
+  /** (number || 'session') maxAge in ms (default is 1 days) */
+  /** 'session' will result in a cookie that expires when session/browser is closed */
+  /** Warning: If a session cookie is stolen, this cookie will never expire */
+  maxAge: 86400000,
+  autoCommit: true, /** (boolean) automatically commit headers (default true) */
+  overwrite: true, /** (boolean) can overwrite or not (default true) */
+  httpOnly: true, /** (boolean) httpOnly or not (default true) */
+  signed: true, /** (boolean) signed or not (default true) */
+  rolling: false, /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (default is false) */
+  renew: false, /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
+}, app))
 
-import morgan = require('morgan')
+import morgan = require('koa-morgan')
 
 // @ts-ignore
 app.use(morgan('combined', {
   stream: {
-    write (message: string, encoding: any) {
+    write (message: string) {
       logger.debug(message)
     }
   }
