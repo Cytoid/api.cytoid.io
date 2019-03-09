@@ -11,10 +11,10 @@ CREATE TABLE "users" (
   CONSTRAINT "USER_EMAIL_UNIQUE" UNIQUE ("email")
 );
 CREATE TABLE "files" (
-  "id"           SERIAL            NOT NULL PRIMARY KEY,
-  "url"          character varying NOT NULL,
+  "id"           SERIAL    NOT NULL PRIMARY KEY,
+  "url"          varchar   NOT NULL,
   "content"      jsonb,
-  "date_created" TIMESTAMP         NOT NULL DEFAULT now(),
+  "date_created" TIMESTAMP NOT NULL DEFAULT now(),
   "ownerId"      uuid,
   "created"      boolean
 );
@@ -36,9 +36,10 @@ CREATE TABLE "levels" (
   CONSTRAINT "LEVEL_UID_UNIQUE" UNIQUE ("uid")
 );
 CREATE TABLE "charts" (
-  "id"         SERIAL            NOT NULL PRIMARY KEY,
-  "title"      character varying NOT NULL,
-  "difficulty" smallint          NOT NULL,
+  "id"         SERIAL   NOT NULL PRIMARY KEY,
+  "title"      varchar  NOT NULL,
+  "difficulty" smallint NOT NULL,
+  "type"       varchar  NOT NULL,
   "levelId"    integer
 );
 CREATE TABLE "level_ratings" (
@@ -50,15 +51,15 @@ CREATE TABLE "level_ratings" (
   CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating < 10) AND (rating >= 0)))
 );
 CREATE TABLE "records" (
-  "id"       SERIAL                      NOT NULL PRIMARY KEY,
-  "date"     TIMESTAMP                   NOT NULL DEFAULT now(),
-  "score"    integer                     NOT NULL,
-  "accuracy" numeric(5, 2)               NOT NULL,
-  "details"  jsonb                       NOT NULL,
-  "mods"     character varying(32) array NOT NULL,
+  "id"       SERIAL            NOT NULL PRIMARY KEY,
+  "date"     TIMESTAMP         NOT NULL DEFAULT now(),
+  "score"    integer           NOT NULL,
+  "accuracy" decimal(5, 2)     NOT NULL,
+  "details"  jsonb             NOT NULL,
+  "mods"     varchar(32) array NOT NULL,
   "ranking"  integer,
-  "chartId"  integer                     NOT NULL,
-  "ownerId"  uuid                        NOT NULL
+  "chartId"  integer           NOT NULL,
+  "ownerId"  uuid              NOT NULL
 );
 ALTER TABLE "files"
   ADD CONSTRAINT "FILES_FK_OWNER" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;

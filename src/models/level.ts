@@ -79,6 +79,9 @@ export class Chart {
   @Column()
   public title: string
 
+  @Column()
+  public type: string
+
   @Column('smallint')
   public difficulty: number
 
