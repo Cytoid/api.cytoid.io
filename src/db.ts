@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import { createConnection } from 'typeorm'
+import {promisify} from 'util'
 
 import conf from './conf'
 
@@ -11,10 +12,17 @@ export const database = createConnection({
   logging: true,
 })
 
-import {createClient, RedisError} from 'redis'
+import {createClient, RedisError, RedisClient} from 'redis'
 import logger from './logger'
 
-export const redis = createClient(conf.get('redis'))
+export const redis: AsyncRedisClient = createClient(conf.get('redis')) as AsyncRedisClient
+
+redis.getAsync = promisify(redis.get)
+
+export interface AsyncRedisClient extends RedisClient {
+  getAsync(key: string) : Promise<string>
+}
+
 
 database
   .then(() => {

@@ -15,7 +15,8 @@ CREATE TABLE "files" (
   "url"          character varying NOT NULL,
   "content"      jsonb,
   "date_created" TIMESTAMP         NOT NULL DEFAULT now(),
-  "ownerId"      uuid
+  "ownerId"      uuid,
+  "created"      boolean
 );
 CREATE TABLE "levels" (
   "id"            SERIAL         NOT NULL PRIMARY KEY,

@@ -1,0 +1,33 @@
+// Obtain level details
+GET {{host}}/levels/try
+Accept: application/json
+
+###
+
+// New Level Creation Flow
+// Step 1
+POST {{host}}/levels/packages
+Accept: application/json
+
+// Returns: {uploadURL, file, callback}
+
+###
+
+// Step 2
+// Upload the file content to google cloud
+PUT https://storage.googleapis.com/assets.cytoid.io/HelloWorld?GoogleAccessId=testing%40cytoid.iam.gserviceaccount.com&Expires=1552109307&Signature=1TW0bD3uNLwEZJ%2BpC4mQ5gEwVlWwn1ifTOGnoxVF%2B7t40pFl1XhRg%2BlSPOYT5UhpxYFGhKx%2FGQ1OhKTBy%2Bm8lVNvYLErnbtjzolvz52EnLVwDGPXXYW1mtNRhF8PVlGGA9axtF9ObqeYdUDg0hEl4yVttopM6PINYDLIt%2Be40yeSzi3s6ZoVYMc2oZ1wuSvy%2BRb0XAAifFbMUCvCNok9DlxQxKEd1SqQhLYL7E8tqJBal0Gzh9f0L4C1Z0nBG46ULCkRLUZ2OQO6UXVF9QRRkFGcrxiS7E795VNUcIVNHL0Ge%2BAAam7jGU3fyxzBRMA04wKy5YrUFEqawiQtVOqqYg%3D%3D
+Accept: application/json
+Content-Type: application/zip
+
+< test.cytoidlevel
+
+###
+
+// Step 4
+// Creates new level
+POST {{host}}/levels/packages
+Content-Type: application/json
+
+{"key":"xovVm0g0OjQ1+za4x19/"}
+
+###

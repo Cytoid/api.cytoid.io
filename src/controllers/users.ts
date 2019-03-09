@@ -45,7 +45,7 @@ class NewUser {
 
 @JsonController('/users')
 export default class UserController extends BaseController {
-  public repo = getRepository(User)
+  private repo = getRepository(User)
 
   @Get('/')
   @Authorized()

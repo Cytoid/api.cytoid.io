@@ -8,5 +8,8 @@ module.exports = {
   },
   redis: {
     url: process.env.REDIS_URL || 'redis://localhost:6379'
-  }
+  },
+  apiURL: 'https://api.cytoid.io',
+  assetsURL: 'https://assets.cytoid.io',
+  webURL: 'https://cytoid.io',
 }
