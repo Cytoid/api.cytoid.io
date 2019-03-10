@@ -7,7 +7,7 @@ import {
   BodyParam,
   NotFoundError,
   InternalServerError,
-  BadRequestError, ForbiddenError
+  BadRequestError, ForbiddenError, Authorized, CurrentUser, Body
 } from 'routing-controllers'
 import BaseController from './base'
 import {randomBytes} from 'crypto'
@@ -18,13 +18,13 @@ import Storage from '../storage'
 import {Level, Rating, Chart, LevelMeta, ILevelBundle} from '../models/level'
 import File from '../models/file'
 import {redis} from '../db'
-import { resolve as resolveURL } from 'url'
+import {resolve as resolveURL} from 'url'
 import conf from '../conf'
+import User from '../models/user'
 
 
 @JsonController('/levels')
 export default class LevelController extends BaseController {
-  private fileRepo = getRepository(File)
   private levelRepo = getRepository(Level)
 
   @Get('/:id')
@@ -38,6 +38,69 @@ export default class LevelController extends BaseController {
         console.log(chart)
         return chart
       })
+  }
+
+  @Get('/:id/ratings')
+  @Authorized()
+  getRatings(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.db.query(`
+      WITH ratings AS (SELECT ratings.rating, ratings."userId"
+                       FROM level_ratings AS ratings
+                              INNER JOIN levels ON levels.id = ratings."levelId"
+                       WHERE levels.uid = $1)
+      SELECT round(avg(rating)) AS average,
+             count(*)           as total,
+             ${user ? `(SELECT rating from ratings where "userId" = $2),` : ''}
+             array(select coalesce(data.count, 0) as rating
+                   from (select unnest(array [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) items) therange
+                          LEFT OUTER JOIN (SELECT ratings.rating, COUNT(ratings.rating)
+                                           FROM ratings
+                                           GROUP BY ratings.rating) data ON data.rating = therange.items) as distribution
+      FROM ratings`,
+      [id, user.id])
+      .then(a => {
+        a = a[0]
+        a.average = parseInt(a.average)
+        a.total = parseInt(a.total)
+        a.rating = parseInt(a.rating)
+        a.distribution = a.distribution.map((i: string) => parseInt(i))
+        return a
+      })
+  }
+
+  @Post('/:id/ratings')
+  @Authorized()
+  async create(@Param('id') id: string, @CurrentUser() user: User, @BodyParam('rating', {required: true}) rating: number) {
+    if (!rating || rating >= 10 || rating < 0) {
+      throw new BadRequestError('Rating missing or out of range (0 - 10)')
+    }
+    const qb = this.db.createQueryBuilder()
+    const levelIdQuery = qb.subQuery()
+      .createQueryBuilder()
+      .select('id')
+      .from(Level, 'level')
+      .where(`level.uid = :uid`, {uid: id})
+    await qb
+      .insert()
+      .into(Rating)
+      .values({
+        levelId: () => `(${levelIdQuery.getQuery()})`,
+        userId: user.id,
+        rating: rating
+      })
+      .onConflict(`ON CONSTRAINT "LEVEL_RATING_UNIQUE" DO UPDATE SET "rating" = :rating`)
+      .setParameter('rating', rating)
+      .setParameters(levelIdQuery.getParameters())
+      .execute()
+      .catch(error => {
+        if (error.column === 'levelId'
+        && error.table === 'level_ratings'
+        && error.code === '23502') {
+          throw new BadRequestError('The specified level does not exist!')
+        }
+        throw error
+      })
+    return 'success'
   }
 
   createPackageConfig = {

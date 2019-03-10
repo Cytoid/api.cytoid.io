@@ -1,5 +1,5 @@
 // Obtain level details
-GET {{host}}/levels/try
+GET {{host}}/levels/tar1412_scikun
 Accept: application/json
 
 ###
@@ -29,5 +29,20 @@ POST {{host}}/levels/packages
 Content-Type: application/json
 
 {"key":"xovVm0g0OjQ1+za4x19/"}
+
+###
+
+GET {{host}}/levels/tar1412_scikun/ratings
+Accept: application/json
+Authorization: Bearer {{jwt}}
+
+###
+
+POST {{host}}/levels/tar1412_scikun/ratings
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{"rating": 9}
 
 ###

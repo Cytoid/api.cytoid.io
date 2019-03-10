@@ -126,8 +126,14 @@ export class Rating {
   @PrimaryGeneratedColumn()
   public id: number
 
+  @Column()
+  public levelId: number
+
   @ManyToOne(() => Level, { onDelete: 'CASCADE', nullable: false })
   public level: Level
+
+  @Column()
+  public userId: string
 
   @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: false })
   public user: User
