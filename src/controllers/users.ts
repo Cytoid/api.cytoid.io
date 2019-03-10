@@ -4,11 +4,11 @@ import {
   MinLength, validate,
 } from 'class-validator'
 import {
-  Authorized, CurrentUser,
-  Body, Param,
-  ForbiddenError,
-  Get, Post,
-  JsonController,
+  Authorized, Body,
+  CurrentUser, ForbiddenError,
+  Get,
+  JsonController, Param,
+  Post,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import User, {IUser} from '../models/user'
@@ -54,11 +54,11 @@ export default class UserController extends BaseController {
   }
 
   @Get('/:id')
-  public getUser(@Param("id") id: string): Promise<User|string> {
+  public getUser(@Param('id') id: string): Promise<User|string> {
     return this.repo.findOne({
       where: [
         {uid: id},
-      ]
+      ],
     })
   }
 

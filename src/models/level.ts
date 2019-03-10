@@ -1,3 +1,4 @@
+import { Exclude, Type } from 'class-transformer'
 import {
   Check,
   Column,
@@ -7,12 +8,11 @@ import {
   OneToMany,
   PrimaryGeneratedColumn, RelationId, Unique, UpdateDateColumn, VersionColumn,
 } from 'typeorm'
-import { Type, Exclude } from 'class-transformer'
 
 import File, {IDirectory} from './file'
 import User from './user'
 
-export namespace LevelMeta{
+export namespace LevelMeta {
   export interface ISource {
     name: string
     localized_name?: string
@@ -30,14 +30,6 @@ export namespace LevelMeta{
 
 @Entity('levels')
 export class Level {
-  constructor () {
-    this.version = 1
-    this.title = ''
-    this.metadata = {}
-    this.duration = 0
-    this.description = ''
-    this.tags = []
-  }
   @PrimaryGeneratedColumn()
   public id: number
 
@@ -89,6 +81,14 @@ export class Level {
   @Type(() => Chart)
   @OneToMany(() => Chart, (chart) => chart.level)
   public charts: Chart[]
+  constructor() {
+    this.version = 1
+    this.title = ''
+    this.metadata = {}
+    this.duration = 0
+    this.description = ''
+    this.tags = []
+  }
 }
 
 export interface ILevelBundleDirectory extends IDirectory {

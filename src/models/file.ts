@@ -1,3 +1,5 @@
+import {Exclude} from 'class-transformer'
+import { join as joinPath } from 'path'
 import {
   Column,
   CreateDateColumn,
@@ -5,12 +7,10 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm'
-import {Exclude} from 'class-transformer'
 import { resolve as resolveURL } from 'url'
-import { join as joinPath } from 'path'
 
-import User from './user'
 import conf from '../conf'
+import User from './user'
 
 export interface IDirectory {
   [key: string]: string
@@ -18,9 +18,6 @@ export interface IDirectory {
 
 @Entity('files')
 export default class File {
-  public constructor(path: string) {
-    this.path = path
-  }
   @PrimaryGeneratedColumn()
   public id: number
 
@@ -39,15 +36,18 @@ export default class File {
 
   @Column({default: false})
   public created: boolean
+  public constructor(path: string) {
+    this.path = path
+  }
 
   public toPlain(baseURL?: string): string | IDirectory {
-    if (!baseURL) baseURL = conf.assetsURL
+    if (!baseURL) { baseURL = conf.assetsURL }
     if (!this.content) {
       // The file is not a directory
       return baseURL + this.path
     }
     const returningVal: IDirectory = {}
-    for (const key in this.content) {
+    for (const key of Object.keys(this.content)) {
       const completePath = joinPath(this.path, this.content[key])
       returningVal[key] = resolveURL(baseURL, completePath)
     }

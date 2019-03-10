@@ -7,7 +7,9 @@
     "rules": {
       "semicolon": [true, "never"],
       "quotemark": [true, "single", "avoid-escape", "avoid-template"],
-      "max-classes-per-file": false
+      "max-classes-per-file": false,
+      "object-literal-sort-keys": false,
+      "no-namespace": false
     },
     "rulesDirectory": []
 }
