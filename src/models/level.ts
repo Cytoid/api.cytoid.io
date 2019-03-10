@@ -5,9 +5,9 @@ import {
   Entity,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn, Unique, UpdateDateColumn, VersionColumn,
+  PrimaryGeneratedColumn, RelationId, Unique, UpdateDateColumn, VersionColumn,
 } from 'typeorm'
-import { Type } from 'class-transformer'
+import { Type, Exclude } from 'class-transformer'
 
 import File, {IDirectory} from './file'
 import User from './user'
@@ -73,6 +73,10 @@ export class Level {
 
   @UpdateDateColumn({ name: 'date_modified' })
   public modificationDate: Date
+
+  @Exclude()
+  @Column({nullable: true})
+  public packageId?: number
 
   @Type(() => File)
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })

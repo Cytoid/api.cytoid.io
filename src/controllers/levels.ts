@@ -11,15 +11,16 @@ import {
 } from 'routing-controllers'
 import BaseController from './base'
 import {randomBytes} from 'crypto'
-import Storage from '../storage'
+import axios from 'axios'
 import {getRepository} from 'typeorm'
+
+import Storage from '../storage'
 import {Level, Rating, Chart, LevelMeta, ILevelBundle} from '../models/level'
 import File from '../models/file'
-
 import {redis} from '../db'
+import { resolve as resolveURL } from 'url'
+import conf from '../conf'
 
-import axios from 'axios'
-import {stringify} from 'querystring'
 
 @JsonController('/levels')
 export default class LevelController extends BaseController {
@@ -27,12 +28,16 @@ export default class LevelController extends BaseController {
   private levelRepo = getRepository(Level)
 
   @Get('/:id')
-  async getLevel(@Param('id') id: string) {
-    return this.levelRepo.findOne({
-      where: [
-        {uid: id},
-      ]
+  getLevel(@Param('id') id: string) {
+    return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
+      where: {uid: id},
+      relations: ['package', 'directory']
     })
+      .then(charts => charts[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
+      .then(chart => {
+        console.log(chart)
+        return chart
+      })
   }
 
   createPackageConfig = {
@@ -55,14 +60,17 @@ export default class LevelController extends BaseController {
       .toString('base64')
       .replace(/\W/g, '')
     const path = this.createPackageConfig.packagePath + packageName
-    const file = new File()
-    file.url = path
+    const file = new File(path)
     // TODO: mark the file owner
     const key = (await randomBytes(15)).toString('base64')
-    await Promise.all([
-      this.db.save(file),
-      redis.setex(this.createPackageConfig.redisPrefix + key, ttl, packageName)
-    ])
+
+    await this.db.save(file, {transaction: false})
+    const sessionData: LevelCreateSessionData = {
+      pkgName: packageName,
+      id: file.id,
+      // userId:
+    }
+    redis.setex(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
     return {
       uploadURL: await Storage.getUploadURL(path, 'application/zip', ttl),
       key: key
@@ -70,12 +78,13 @@ export default class LevelController extends BaseController {
   }
 
   async unpackPackage(key: string) {
-    const packageName = await redis.getAsync(this.createPackageConfig.redisPrefix + key)
-    if (!packageName) {
+    const sessionData: LevelCreateSessionData = JSON.parse(
+      await redis.getAsync(this.createPackageConfig.redisPrefix + key))
+    if (!sessionData) {
       throw new NotFoundError('Access Key not exist or expired')
     }
-    const packagePath = this.createPackageConfig.packagePath + packageName
-    const bundlePath = this.createPackageConfig.bundlePath + packageName
+    const packagePath = this.createPackageConfig.packagePath + sessionData.pkgName
+    const bundlePath = this.createPackageConfig.bundlePath + sessionData.pkgName
     const leveldata = await axios.post(this.createPackageConfig.unpkgURL, {
       packagePath: packagePath,
       bundlePath: bundlePath,
@@ -119,25 +128,31 @@ export default class LevelController extends BaseController {
       name: packageMeta.storyboarder,
     }
 
-    const levelBundle: ILevelBundle = new File() as ILevelBundle
-    levelBundle.url = bundlePath
-    levelBundle.content = {
+    level.bundle = new File(bundlePath) as ILevelBundle
+    level.bundle.content = {
       music: packageMeta.music && packageMeta.music.path,
       music_preview: packageMeta.music_preview && packageMeta.music_preview.path,
       background: packageMeta.background && packageMeta.background.path
     }
+    level.packageId = sessionData.id
 
     const charts = packageMeta.charts.map(chart => {
       const entity = new Chart()
       entity.difficulty = chart.difficulty
       entity.type = chart.type
-      entity.title = chart.name || ''
+      entity.name = chart.name
       entity.level = level
       // TODO: Add keys to levelBundle.content.charts
       return entity
     })
 
     return this.db.transaction(async tr => {
+      const qb = tr.createQueryBuilder()
+      await qb.update(File)
+        .set({created: true})
+        .where("id = :id", {id: sessionData.id})
+        .execute()
+      await tr.save(level.bundle)
       await tr.save(level)
         .catch(error => {
           if (error.constraint == 'LEVEL_UID_UNIQUE') {
@@ -146,10 +161,20 @@ export default class LevelController extends BaseController {
           throw error
         })
       await Promise.all(charts.map(chart => tr.save(chart)))
-      await tr.save(levelBundle)
       return level
     })
+      .then((level: any) => {
+        level.package = resolveURL(conf.assetsURL, packagePath)
+        level.bundle = level.bundle.toPlain()
+        return level
+      })
   }
+}
+
+interface LevelCreateSessionData {
+  pkgName: string
+  id: number
+  userId?: string
 }
 
 namespace PackageMeta {
