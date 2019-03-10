@@ -10,7 +10,7 @@ import {Exclude} from 'class-transformer'
 import User from './user'
 
 export interface IDirectory {
-
+  [key: string]: string | IDirectory
 }
 
 @Entity('files')

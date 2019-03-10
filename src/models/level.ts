@@ -8,23 +8,35 @@ import {
   PrimaryGeneratedColumn, Unique, UpdateDateColumn, VersionColumn,
 } from 'typeorm'
 
-import File from './file'
+import File, {IDirectory} from './file'
 import User from './user'
 
-export interface ISource {
-  name: string
-  url: URL
-}
-
-export interface ILevelMeta {
-  artist: ISource
-  illustrator: ISource
-  charter: ISource
-  storyboarder: ISource
+export namespace LevelMeta{
+  export interface ISource {
+    name: string
+    localized_name?: string
+    url?: string
+  }
+  export interface IMeta {
+    title?: string
+    title_localized?: string
+    artist?: ISource
+    illustrator?: ISource
+    charter?: ISource
+    storyboarder?: ISource
+  }
 }
 
 @Entity('levels')
 export class Level {
+  constructor () {
+    this.version = 1
+    this.title = ''
+    this.metadata = {}
+    this.duration = 0
+    this.description = ''
+    this.tags = []
+  }
   @PrimaryGeneratedColumn()
   public id: number
 
@@ -38,7 +50,7 @@ export class Level {
   public title: string
 
   @Column('jsonb')
-  public metadata: ILevelMeta
+  public metadata: LevelMeta.IMeta
 
   @Column('decimal', { precision: 6, scale: 2 })
   public duration: number
@@ -65,10 +77,20 @@ export class Level {
   public package?: File
 
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })
-  public directory?: File
+  public directory?: ILevelBundle
 
   @OneToMany(() => Chart, (chart) => chart.level)
   public charts: Chart[]
+}
+
+export interface ILevelBundleDirectory extends IDirectory {
+  music: string
+  music_preview: string
+  background: string
+}
+
+export interface ILevelBundle extends File {
+  content: ILevelBundleDirectory
 }
 
 @Entity('charts')
