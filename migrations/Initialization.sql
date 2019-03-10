@@ -12,7 +12,7 @@ CREATE TABLE "users" (
 );
 CREATE TABLE "files" (
   "id"           SERIAL    NOT NULL PRIMARY KEY,
-  "url"          varchar   NOT NULL,
+  "path"         varchar   NOT NULL,
   "content"      jsonb,
   "date_created" TIMESTAMP NOT NULL DEFAULT now(),
   "ownerId"      uuid,
@@ -32,12 +32,12 @@ CREATE TABLE "levels" (
   "date_modified" TIMESTAMP      NOT NULL DEFAULT now(),
   "ownerId"       uuid,
   "packageId"     integer,
-  "directoryId"   integer,
+  "bundleId"      integer,
   CONSTRAINT "LEVEL_UID_UNIQUE" UNIQUE ("uid")
 );
 CREATE TABLE "charts" (
   "id"         SERIAL   NOT NULL PRIMARY KEY,
-  "title"      varchar  NOT NULL,
+  "name"       varchar,
   "difficulty" smallint NOT NULL,
   "type"       varchar  NOT NULL,
   "levelId"    integer
@@ -68,7 +68,7 @@ ALTER TABLE "levels"
 ALTER TABLE "levels"
   ADD CONSTRAINT "LEVELS_FK_PACKAGE" FOREIGN KEY ("packageId") REFERENCES "files" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;
 ALTER TABLE "levels"
-  ADD CONSTRAINT "LEVELS_FK_DIRECTORY" FOREIGN KEY ("directoryId") REFERENCES "files" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+  ADD CONSTRAINT "LEVELS_FK_BUNDLE" FOREIGN KEY ("bundleId") REFERENCES "files" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;
 ALTER TABLE "charts"
   ADD CONSTRAINT "CHARTS_FK_LEVEL" FOREIGN KEY ("levelId") REFERENCES "levels" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 ALTER TABLE "level_ratings"

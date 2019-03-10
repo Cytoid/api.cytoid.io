@@ -7,6 +7,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn, Unique, UpdateDateColumn, VersionColumn,
 } from 'typeorm'
+import { Type } from 'class-transformer'
 
 import File, {IDirectory} from './file'
 import User from './user'
@@ -73,12 +74,15 @@ export class Level {
   @UpdateDateColumn({ name: 'date_modified' })
   public modificationDate: Date
 
+  @Type(() => File)
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })
   public package?: File
 
+  @Type(() => File)
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })
-  public directory?: ILevelBundle
+  public bundle?: ILevelBundle
 
+  @Type(() => Chart)
   @OneToMany(() => Chart, (chart) => chart.level)
   public charts: Chart[]
 }
@@ -98,8 +102,8 @@ export class Chart {
   @PrimaryGeneratedColumn()
   public id: number
 
-  @Column()
-  public title: string
+  @Column({ nullable: true })
+  public name: string
 
   @Column()
   public type: string
