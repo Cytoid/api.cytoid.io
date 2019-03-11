@@ -27,6 +27,10 @@ export default class File {
   @Column('jsonb', { nullable: true, comment: 'null for standalone files' })
   public content?: IDirectory
 
+  @Exclude()
+  @Column({nullable: true})
+  public ownerId?: string
+
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   public owner?: User
 

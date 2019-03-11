@@ -65,7 +65,7 @@ export default class UserController extends BaseController {
   @Post('/')
   public createUser(@Body() newUser: NewUser): Promise<User|string> {
     return newUser.create()
-      .then((user) => this.db.save(user))
+      .then((user) => this.db.save(user, {transaction: false}))
       .catch((error) => {
         if (error.constraint === 'USER_EMAIL_UNIQUE') {
           throw new ForbiddenError('duplicated email address')

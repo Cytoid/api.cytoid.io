@@ -57,6 +57,10 @@ export class Level {
   @Column('varchar', { array: true, length: 30 })
   public tags: string[]
 
+  @Exclude()
+  @Column({nullable: true})
+  public ownerId?: string
+
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   public owner?: User
 

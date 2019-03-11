@@ -2,7 +2,7 @@ import * as passport from 'koa-passport'
 import {Strategy as JwtStrategy, ExtractJwt} from 'passport-jwt'
 import {Strategy as LocalStrategy} from 'passport-local'
 import {getManager} from 'typeorm'
-import User from './models/user'
+import User, {IUser} from './models/user'
 import * as jwt from 'jsonwebtoken'
 
 const db = getManager()
@@ -54,7 +54,7 @@ export default passport
 import { Action } from "routing-controllers"
 import {Middleware} from 'koa'
 
-export async function currentUserChecker(action: Action) {
+export async function currentUserChecker(action: Action): Promise<IUser> {
   return action.context.state.user
 }
 

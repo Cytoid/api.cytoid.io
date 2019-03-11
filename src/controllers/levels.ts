@@ -20,7 +20,7 @@ import conf from '../conf'
 import {redis} from '../db'
 import File from '../models/file'
 import {Chart, ILevelBundle, Level, LevelMeta, Rating} from '../models/level'
-import User from '../models/user'
+import { IUser } from '../models/user'
 import Storage from '../storage'
 
 @JsonController('/levels')
@@ -48,7 +48,7 @@ export default class LevelController extends BaseController {
   @Get('/:id/ratings')
   @UseBefore(OptionalAuthenticate)
   @ContentType('application/json')
-  public async getRatings(@Param('id') id: string, @CurrentUser() user: User) {
+  public async getRatings(@Param('id') id: string, @CurrentUser() user: IUser) {
     const cacheVal = await redis.getAsync(this.levelRatingCacheKey + id)
     if (cacheVal) {
       if (user) {
@@ -98,7 +98,7 @@ FROM ratings`,
   @Authorized()
   public async updateRatings(
     @Param('id') id: string,
-    @CurrentUser() user: User,
+    @CurrentUser() user: IUser,
     @BodyParam('rating', {required: true}) rating: number) {
     if (!rating || rating >= 10 || rating < 0) {
       throw new BadRequestError('Rating missing or out of range (0 - 10)')
@@ -137,25 +137,26 @@ FROM ratings`,
   }
 
   @Post('/packages')
-  public async createPackage(@BodyParam('key') key: string) {
-    if (!key) { return this.signPackageUploadURL() } else { return this.unpackPackage(key) }
+  @Authorized()
+  public async createPackage(@BodyParam('key') key: string, @CurrentUser() user: IUser) {
+    if (!key) { return this.signPackageUploadURL(user) } else { return this.unpackPackage(key, user) }
   }
 
-  public async signPackageUploadURL() {
+  public async signPackageUploadURL(user: IUser) {
     const ttl = 600
     const packageName = (await randomBytes(this.createPackageConfig.packageLen))
       .toString('base64')
       .replace(/\W/g, '')
     const path = this.createPackageConfig.packagePath + packageName
     const file = new File(path)
-    // TODO: mark the file owner
+    file.ownerId = user.id
     const key = (await randomBytes(15)).toString('base64')
 
     await this.db.save(file, {transaction: false})
     const sessionData: ILevelCreateSessionData = {
       pkgName: packageName,
       id: file.id,
-      // userId:
+      userId: user.id,
     }
     await redis.setexAsync(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
     return {
@@ -164,11 +165,14 @@ FROM ratings`,
     }
   }
 
-  public async unpackPackage(key: string) {
+  public async unpackPackage(key: string, user: IUser) {
     const sessionData: ILevelCreateSessionData = JSON.parse(
       await redis.getAsync(this.createPackageConfig.redisPrefix + key))
     if (!sessionData) {
       throw new NotFoundError('Access Key not exist or expired')
+    }
+    if (sessionData.userId != user.id) {
+      throw new ForbiddenError('Must be logged in as the user who originally started the operation!')
     }
     const packagePath = this.createPackageConfig.packagePath + sessionData.pkgName
     const bundlePath = this.createPackageConfig.bundlePath + sessionData.pkgName
@@ -192,7 +196,7 @@ FROM ratings`,
     level.uid = packageMeta.id
     level.version = packageMeta.version || 1
     level.title = packageMeta.title || ''
-    // TODO: level.owner
+    level.ownerId = user.id
     level.metadata = {
       title: packageMeta.title,
       title_localized: packageMeta.title_localized,
@@ -220,6 +224,8 @@ FROM ratings`,
     }
 
     level.bundle = new File(bundlePath) as ILevelBundle
+    level.bundle.ownerId = user.id
+    level.bundle.created = true
     level.bundle.content = {
       music: packageMeta.music && packageMeta.music.path,
       music_preview: packageMeta.music_preview && packageMeta.music_preview.path,
@@ -233,7 +239,6 @@ FROM ratings`,
       entity.type = chart.type
       entity.name = chart.name
       entity.level = level
-      // TODO: Add keys to levelBundle.content.charts
       return entity
     })
 
@@ -251,7 +256,7 @@ FROM ratings`,
           }
           throw error
         })
-      await Promise.all(charts.map((chart) => tr.save(chart)))
+      await tr.save(charts)
       return level
     })
       .then((result: any) => {
