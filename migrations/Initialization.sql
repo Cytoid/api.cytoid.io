@@ -48,7 +48,7 @@ CREATE TABLE "level_ratings" (
   "levelId" integer  NOT NULL,
   "userId"  uuid     NOT NULL,
   CONSTRAINT "LEVEL_RATING_UNIQUE" UNIQUE ("levelId", "userId"),
-  CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating < 10) AND (rating >= 0)))
+  CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating <= 10) AND (rating > 0)))
 );
 CREATE TABLE "records" (
   "id"       SERIAL            NOT NULL PRIMARY KEY,

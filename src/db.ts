@@ -18,9 +18,13 @@ import logger from './logger'
 export const redis: AsyncRedisClient = createClient(conf.get('redis')) as AsyncRedisClient
 
 redis.getAsync = promisify(redis.get)
+redis.setexAsync = promisify(redis.setex)
+redis.delAsync = promisify(redis.del)
 
 export interface AsyncRedisClient extends RedisClient {
   getAsync(key: string) : Promise<string>
+  setexAsync(key: string, seconds: number, value: string) : Promise<string>
+  delAsync(key: string) : Promise<number>
 }
 
 

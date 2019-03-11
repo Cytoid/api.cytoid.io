@@ -34,7 +34,7 @@ Content-Type: application/json
 
 GET {{host}}/levels/tar1412_scikun/ratings
 Accept: application/json
-Authorization: Bearer {{jwt}}
+Authorization: Bearer {{jwt}} // Optional
 
 ###
 

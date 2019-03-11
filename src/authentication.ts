@@ -60,7 +60,7 @@ export async function currentUserChecker(action: Action) {
 
 const authorizationCheckers: Middleware[] = [
   passport.session(),
-  passport.authenticate('jwt'),
+  passport.authenticate('jwt', {session: false}),
 ]
 export function authorizationChecker(action: Action, roles: string[]) {
   for (const authenticator of authorizationCheckers) {
@@ -69,4 +69,13 @@ export function authorizationChecker(action: Action, roles: string[]) {
       break
   }
   return action.context.state.user
+}
+
+export function OptionalAuthenticate(context: any, next: (err?: Error) => Promise<any>){
+  for (const authenticator of authorizationCheckers) {
+    authenticator(context, () => Promise.resolve())
+    if (context.state.user)
+      break
+  }
+  return next()
 }

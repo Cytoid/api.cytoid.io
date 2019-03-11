@@ -3,18 +3,19 @@ import {randomBytes} from 'crypto'
 import {
   Authorized,
   BadRequestError,
-  Body,
   BodyParam,
   CurrentUser,
   ForbiddenError,
   Get,
   InternalServerError,
-  JsonController, NotFoundError, Param, Post, Put,
+  JsonController, NotFoundError, Param, Post, Put, UseBefore,
+  ContentType
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import BaseController from './base'
 
 import {resolve as resolveURL} from 'url'
+import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
 import File from '../models/file'
@@ -27,7 +28,7 @@ export default class LevelController extends BaseController {
 
   public createPackageConfig = {
     packageLen: 30,
-    redisPrefix: 'cytoid:levelcreate:',
+    redisPrefix: 'cytoid:level:create:',
     unpkgURL: 'http://localhost:5000/resolve-level-files',
     packagePath: 'levels/packages/',
     bundlePath: 'levels/bundles/',
@@ -43,37 +44,59 @@ export default class LevelController extends BaseController {
       .then((charts) => charts[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
   }
 
+  private levelRatingCacheKey = 'cytoid:level:ratings:'
   @Get('/:id/ratings')
-  @Authorized()
-  public getRatings(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.db.query(`
-      WITH ratings AS (SELECT ratings.rating, ratings."userId"
-                       FROM level_ratings AS ratings
-                              INNER JOIN levels ON levels.id = ratings."levelId"
-                       WHERE levels.uid = $1)
-      SELECT round(avg(rating)) AS average,
-             count(*)           as total,
-             ${user ? '(SELECT rating from ratings where "userId" = $2),' : ''}
-             array(select coalesce(data.count, 0) as rating
-                   from (select unnest(array [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) items) therange
-                   LEFT OUTER JOIN (SELECT ratings.rating, COUNT(ratings.rating)
-                                    FROM ratings
-                                    GROUP BY ratings.rating) data ON data.rating = therange.items) as distribution
-      FROM ratings`,
-      [id, user.id])
-      .then((a) => {
+  @UseBefore(OptionalAuthenticate)
+  @ContentType('application/json')
+  public async getRatings(@Param('id') id: string, @CurrentUser() user: User) {
+    const cacheVal = await redis.getAsync(this.levelRatingCacheKey + id)
+    if (cacheVal) {
+      if (user) {
+        const result = JSON.parse(cacheVal)
+        result.rating = await this.db.createQueryBuilder()
+          .select('rating')
+          .from('level_ratings', 'ratings')
+          .where('"userId" = :userId', {userId: user.id})
+          .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
+          .getRawOne()
+          .then(a => a.rating)
+        return result
+      } else {
+        return cacheVal
+      }
+    }
+    // language=PostgreSQL
+    return this.db.query(
+`
+WITH ratings AS (SELECT rating, "userId"
+                 FROM level_ratings
+                 WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1))
+SELECT round(avg(rating)) AS average,
+       count(*)           AS total,
+       ${user ? '(SELECT rating from ratings where "userId" = $2),' : ''}
+       array(SELECT coalesce(data.count, 0) AS rating
+             FROM (SELECT generate_series(1, 10) items) fullrange
+             LEFT OUTER JOIN (SELECT ratings.rating, count(ratings.rating)
+                              FROM ratings
+                              GROUP BY ratings.rating) data ON data.rating = fullrange.items) AS distribution
+FROM ratings`,
+      user ? [id, user.id] : [id])
+      .then(async (a) => {
         a = a[0]
-        a.average = parseInt(a.average1, 10)
+        a.average = parseInt(a.average, 10)
         a.total = parseInt(a.total, 10)
-        a.rating = parseInt(a.rating, 10)
         a.distribution = a.distribution.map((i: string) => parseInt(i, 10))
+        const rating = parseInt(a.rating, 10)
+        delete a.rating
+        await redis.setexAsync(this.levelRatingCacheKey + id, 3600, JSON.stringify(a))
+        if (rating) a.rating = rating
         return a
       })
   }
 
   @Post('/:id/ratings')
   @Authorized()
-  public async create(
+  public async updateRatings(
     @Param('id') id: string,
     @CurrentUser() user: User,
     @BodyParam('rating', {required: true}) rating: number) {
@@ -98,6 +121,10 @@ export default class LevelController extends BaseController {
       .setParameter('rating', rating)
       .setParameters(levelIdQuery.getParameters())
       .execute()
+      .then(async (a) => {
+        console.log(a)
+        await redis.delAsync(this.levelRatingCacheKey + id)
+      })
       .catch((error) => {
         if (error.column === 'levelId'
         && error.table === 'level_ratings'
@@ -130,7 +157,7 @@ export default class LevelController extends BaseController {
       id: file.id,
       // userId:
     }
-    redis.setex(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
+    await redis.setexAsync(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
     return {
       uploadURL: await Storage.getUploadURL(path, 'application/zip', ttl),
       key,

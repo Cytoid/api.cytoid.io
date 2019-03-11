@@ -121,7 +121,7 @@ export class Chart {
 
 @Entity ('level_ratings')
 @Unique(['level', 'user'])
-@Check('((rating < 10 ) AND (rating >= 0))')
+@Check('((rating <= 10 ) AND (rating > 0))')
 export class Rating {
   @PrimaryGeneratedColumn()
   public id: number
