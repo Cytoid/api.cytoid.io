@@ -39,27 +39,38 @@ export default class LevelController extends BaseController {
   public getLevel(@Param('id') id: string) {
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
-      relations: ['package', 'directory'],
+      relations: ['package', 'bundle', 'charts'],
     })
       .then((charts) => charts[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
   }
 
   private levelRatingCacheKey = 'cytoid:level:ratings:'
+
+  /**
+   * Get the rating distribution, total count, and mean ratings for a level.
+   * If the user was authenticated, also returns the rating the user gave.
+   * @param id The UID of the level
+   * @param user The user. Optional.
+   */
   @Get('/:id/ratings')
   @UseBefore(OptionalAuthenticate)
   @ContentType('application/json')
-  public async getRatings(@Param('id') id: string, @CurrentUser() user: IUser) {
+  public async getRatings(@Param('id') id: string, @CurrentUser() user?: IUser) {
     const cacheVal = await redis.getAsync(this.levelRatingCacheKey + id)
     if (cacheVal) {
       if (user) {
-        const result = JSON.parse(cacheVal)
-        result.rating = await this.db.createQueryBuilder()
+        const rating = await this.db.createQueryBuilder()
           .select('rating')
           .from('level_ratings', 'ratings')
           .where('"userId" = :userId', {userId: user.id})
           .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
           .getRawOne()
-          .then(a => a.rating)
+          .then((a) => {
+            if (!a) throw new NotFoundError('The specified level does not exist.')
+            return a.rating
+          })
+        const result = JSON.parse(cacheVal)
+        result.rating = rating
         return result
       } else {
         return cacheVal
@@ -94,13 +105,19 @@ FROM ratings`,
       })
   }
 
+  /**
+   * Update the ratings for a level. Authentication Required.
+   * @param id
+   * @param user
+   * @param rating
+   */
   @Post('/:id/ratings')
   @Authorized()
   public async updateRatings(
     @Param('id') id: string,
     @CurrentUser() user: IUser,
     @BodyParam('rating', {required: true}) rating: number) {
-    if (!rating || rating >= 10 || rating < 0) {
+    if (!rating || rating > 10 || rating <= 0) {
       throw new BadRequestError('Rating missing or out of range (0 - 10)')
     }
     const qb = this.db.createQueryBuilder()
@@ -121,10 +138,6 @@ FROM ratings`,
       .setParameter('rating', rating)
       .setParameters(levelIdQuery.getParameters())
       .execute()
-      .then(async (a) => {
-        console.log(a)
-        await redis.delAsync(this.levelRatingCacheKey + id)
-      })
       .catch((error) => {
         if (error.column === 'levelId'
         && error.table === 'level_ratings'
@@ -133,15 +146,26 @@ FROM ratings`,
         }
         throw error
       })
-    return 'success'
+    await redis.delAsync(this.levelRatingCacheKey + id)
+    return this.getRatings(id, user)
   }
 
+  /**
+   * Routing based on if the request includes the package upload key.
+   * @param key
+   * @param user
+   */
   @Post('/packages')
   @Authorized()
   public async createPackage(@BodyParam('key') key: string, @CurrentUser() user: IUser) {
     if (!key) { return this.signPackageUploadURL(user) } else { return this.unpackPackage(key, user) }
   }
 
+  /**
+   * Generate the package upload key, create the temporary file in the db,
+   * and sign the upload URL from Google Cloud Storage.
+   * @param user
+   */
   public async signPackageUploadURL(user: IUser) {
     const ttl = 600
     const packageName = (await randomBytes(this.createPackageConfig.packageLen))
@@ -165,6 +189,12 @@ FROM ratings`,
     }
   }
 
+  /**
+   * Verify the upload key, unpackage and analyze the package, create the bundle directory,
+   * extract the metadata from the package, save it into the database, and return the metadata.
+   * @param key
+   * @param user
+   */
   public async unpackPackage(key: string, user: IUser) {
     const sessionData: ILevelCreateSessionData = JSON.parse(
       await redis.getAsync(this.createPackageConfig.redisPrefix + key))

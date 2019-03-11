@@ -72,7 +72,7 @@ export default class UserController extends BaseController {
         } else if (error.constraint === 'USER_UID_UNIQUE') {
           throw new ForbiddenError('duplicated uid')
         }
-        return 'error'
+        throw error
       })
   }
 }
