@@ -9,9 +9,18 @@ import {
   Get,
   InternalServerError,
   JsonController, NotFoundError, Param, Post, Put, UseBefore,
-  ContentType
+  ContentType, Body
 } from 'routing-controllers'
-import {getRepository} from 'typeorm'
+import {
+  IsString,
+  IsBoolean,
+  IsInt, IsNumber, Min, Max,
+  IsInstance,
+  ValidateNested,
+  ArrayUnique,
+} from 'class-validator'
+import {Type} from 'class-transformer'
+import {getRepository, Raw} from 'typeorm'
 import BaseController from './base'
 
 import {resolve as resolveURL} from 'url'
@@ -19,9 +28,34 @@ import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
 import File from '../models/file'
-import {Chart, ILevelBundle, Level, LevelMeta, Rating} from '../models/level'
+import {Chart, ILevelBundle, Level, Rating} from '../models/level'
 import { IUser } from '../models/user'
+import Record, {RecordDetails} from '../models/record'
 import Storage from '../storage'
+
+class NewRecord {
+
+  @IsInt()
+  @Min(0)
+  @Max(1000000)
+  score: number
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  accuracy: number
+
+  @Type(() => RecordDetails)
+  @ValidateNested() // FIXME: 500 error "newValue_1.push is not a function" when post an array
+  @IsInstance(RecordDetails)
+  details: RecordDetails
+
+  @ArrayUnique() // TODO: check all mods are valid.
+  mods: string[]
+
+  @IsBoolean()
+  ranked: boolean
+}
 
 @JsonController('/levels')
 export default class LevelController extends BaseController {
@@ -34,6 +68,7 @@ export default class LevelController extends BaseController {
     bundlePath: 'levels/bundles/',
   }
   private levelRepo = getRepository(Level)
+  private chartRepo = getRepository(Chart)
 
   @Get('/:id')
   public getLevel(@Param('id') id: string) {
@@ -293,6 +328,82 @@ FROM ratings`,
         result.package = resolveURL(conf.assetsURL, packagePath)
         result.bundle = result.bundle.toPlain()
         return result
+      })
+  }
+
+  @Get('/:id/charts/:chartType/')
+  public getChart(@Param('id') id: string, @Param('chartType') chartType: string) {
+    return this.db.createQueryBuilder()
+      .select('name')
+      .addSelect('difficulty')
+      .from(Chart, 'chart')
+      .where('type = :chartType', {chartType: chartType})
+      .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
+      .getRawOne()
+      .then(a => {
+        a.level = id
+        a.type = chartType
+        return a
+      })
+  }
+
+  private queryLeaderboard (chartId?: number) {
+    return `
+SELECT *, rank() OVER (ORDER BY score DESC, date ASC)
+FROM (SELECT DISTINCT ON ("ownerId") *
+      FROM records
+      WHERE "chartId" = ${chartId ? '$1' : '(SELECT id FROM charts WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1) AND type = $2)'}
+      ORDER BY "ownerId", score DESC, date ASC) a`
+  }
+
+  @Get('/:id/charts/:chartType/ranking')
+  public getChartRanking(@Param('id') id: string, @Param('chartType') chartType: string) {
+    return this.db.query(this.queryLeaderboard(), [id, chartType])
+  }
+
+  @Get('/:id/charts/:chartType/ranking/my')
+  @Authorized()
+  public getMyChartRanking(@Param('id') id: string, @Param('chartType') chartType: string, @CurrentUser() user: IUser) {
+    return this.db.query(`
+WITH leaderboard as (${this.queryLeaderboard()})
+SELECT *
+FROM leaderboard
+WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
+      [id, chartType, user.id])
+  }
+
+  @Post('/:id/charts/:chartType/records')
+  @Authorized()
+  public addRecord(
+    @Param('id') id: string,
+    @Param('chartType') chartType: string,
+    @CurrentUser() user: IUser,
+    @Body() record: NewRecord) {
+    const qb = this.db.createQueryBuilder()
+    const chartQuery =
+    qb.subQuery()
+      .select('id')
+      .from(Chart, 'chart')
+      .where('type = :chartType', {chartType: chartType})
+      .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
+    return  qb.insert()
+      .into(Record)
+      .values({
+        ownerId: user.id,
+        score: record.score,
+        accuracy: record.accuracy,
+        details: record.details,
+        mods: record.mods,
+        chart: () => chartQuery.getQuery()
+      })
+      .setParameters(chartQuery.getParameters())
+      .returning('"chartId", id')
+      .execute()
+      .catch(error => {
+        if (error.table === 'records' && error.column === 'chartId' && error.code === '23502') {
+          throw new NotFoundError('The specified chart was not found.')
+        }
+        throw error
       })
   }
 }

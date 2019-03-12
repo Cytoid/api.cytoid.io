@@ -24,7 +24,7 @@ CREATE TABLE "levels" (
   "uid"           varchar        NOT NULL,
   "title"         varchar        NOT NULL,
   "metadata"      jsonb          NOT NULL,
-  "duration"      decimal(6, 2)  NOT NULL,
+  "duration"      real           NOT NULL,
   "description"   text           NOT NULL,
   "published"     boolean        NOT NULL DEFAULT false,
   "tags"          varchar(30) [] NOT NULL,
@@ -40,7 +40,8 @@ CREATE TABLE "charts" (
   "name"       varchar,
   "difficulty" smallint NOT NULL,
   "type"       varchar  NOT NULL,
-  "levelId"    integer
+  "levelId"    integer,
+  CONSTRAINT "LEVEL_CHART_TYPE_UNIQUE" UNIQUE ("levelId", "type")
 );
 CREATE TABLE "level_ratings" (
   "id"      SERIAL   NOT NULL PRIMARY KEY,
@@ -51,15 +52,15 @@ CREATE TABLE "level_ratings" (
   CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating <= 10) AND (rating > 0)))
 );
 CREATE TABLE "records" (
-  "id"       SERIAL            NOT NULL PRIMARY KEY,
-  "date"     TIMESTAMP         NOT NULL DEFAULT now(),
-  "score"    integer           NOT NULL,
-  "accuracy" decimal(5, 2)     NOT NULL,
-  "details"  jsonb             NOT NULL,
-  "mods"     varchar(32) array NOT NULL,
+  "id"       SERIAL         NOT NULL PRIMARY KEY,
+  "date"     TIMESTAMP      NOT NULL DEFAULT now(),
+  "score"    integer        NOT NULL,
+  "accuracy" real           NOT NULL,
+  "details"  jsonb          NOT NULL,
+  "mods"     varchar(32) [] NOT NULL,
   "ranking"  integer,
-  "chartId"  integer           NOT NULL,
-  "ownerId"  uuid              NOT NULL
+  "chartId"  integer        NOT NULL,
+  "ownerId"  uuid           NOT NULL
 );
 ALTER TABLE "files"
   ADD CONSTRAINT "FILES_FK_OWNER" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;

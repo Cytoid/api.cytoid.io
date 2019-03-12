@@ -106,6 +106,7 @@ export interface ILevelBundle extends File {
 }
 
 @Entity('charts')
+@Unique(['type', 'level'])
 export class Chart {
   @PrimaryGeneratedColumn()
   public id: number
