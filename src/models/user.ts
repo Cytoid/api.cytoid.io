@@ -52,4 +52,13 @@ export default class User implements IUser {
   public checkPassword(password: string) {
     return PasswordManager.checkPassword(this.password, password)
   }
+
+  public serialize(): IUser {
+    return {
+      email: this.email,
+      id: this.id,
+      name: this.name,
+      uid: this.uid,
+    }
+  }
 }

@@ -9,7 +9,7 @@ import * as models from './models'
 export const database = createConnection({
   ...conf.postgres,
   entities: Object.values(models),
-  logging: true,
+  logging: process.env.NODE_ENV === 'development' ? true : ['info'],
 })
 
 import {createClient, RedisError, RedisClient} from 'redis'

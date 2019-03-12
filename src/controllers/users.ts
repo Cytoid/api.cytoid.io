@@ -13,6 +13,7 @@ import {
 import {getRepository} from 'typeorm'
 import User, {IUser} from '../models/user'
 import BaseController from './base'
+import {signJWT} from '../authentication'
 
 class NewUser {
   @IsString()
@@ -63,8 +64,12 @@ export default class UserController extends BaseController {
   }
 
   @Post('/')
-  public createUser(@Body() newUser: NewUser): Promise<User|string> {
+  public createUser(@Body() newUser: NewUser) {
     return newUser.create()
+      .then((user) => {
+        user.emailVerified = user.email ? false : null
+        return user
+      })
       .then((user) => this.db.save(user, {transaction: false}))
       .catch((error) => {
         if (error.constraint === 'USER_EMAIL_UNIQUE') {
@@ -73,6 +78,12 @@ export default class UserController extends BaseController {
           throw new ForbiddenError('duplicated uid')
         }
         throw error
+      })
+      .then(async (user) => {
+        return {
+          user,
+          token: await signJWT(user.serialize()),
+        }
       })
   }
 }

@@ -9,7 +9,7 @@ const logger = winston.createLogger({
     new winston.transports.Console({
       level: 'debug',
       handleExceptions: true,
-    })
-  ]
+    }),
+  ],
 })
 export default logger
