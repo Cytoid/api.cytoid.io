@@ -46,7 +46,11 @@ passport.use(
 )
 
 passport.serializeUser((user: User, done) => {
-  done(null, user.id)
+  done(null, user.serialize())
+})
+
+passport.deserializeUser((id: IUser, done) => {
+  done(null, id)
 })
 
 export default passport

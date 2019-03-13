@@ -36,9 +36,12 @@ app.use(session({
 useKoaServer(app, {
   controllers: Object.values(controllers),
   middlewares: Object.values(middlewares),
-  authorizationChecker: authorizationChecker,
-  currentUserChecker: currentUserChecker,
-  cors: true
+  authorizationChecker,
+  currentUserChecker,
+  cors: {
+    origin: conf.webURL,
+    credentials: true,
+  }
 })
 
 import * as morgan from 'koa-morgan'
