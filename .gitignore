@@ -68,3 +68,5 @@ typings/
 .idea/
 
 config/production.js
+secrets.tar
+deploy-secret.json
