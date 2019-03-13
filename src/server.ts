@@ -16,7 +16,7 @@ if (process.env['HTTP2']) {
       logger.debug('HTTP2 Listening on port: ' + port)
     })
 } else {
-  app.listen(3000, () => {
+  app.listen(port, () => {
     logger.debug('HTTP1.1 Listening on port: ' + port)
   })
 }

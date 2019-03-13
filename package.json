@@ -2,7 +2,7 @@
   "name": "api.cytoid.io",
   "private": true,
   "engines": {
-    "node": ">10.5.2"
+    "node": ">10.0"
   },
   "dependencies": {
     "@google-cloud/storage": "^2.4.2",

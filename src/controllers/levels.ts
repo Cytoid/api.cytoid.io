@@ -81,8 +81,11 @@ export default class LevelController extends BaseController {
       where: {uid: id},
       relations: ['package', 'bundle', 'charts'],
     })
-      .then((levels) => levels[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
-      .then((level) => {
+      .then((levels) => {
+        if (levels.length === 0) {
+          return undefined
+        }
+        const level = levels[0]
         const result: any = level
         result.bundle = level.bundle.toPlain()
         result.package = level.package.toPlain()
