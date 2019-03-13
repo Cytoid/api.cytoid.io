@@ -4,15 +4,16 @@ import {
   Authorized,
   BadRequestError,
   BodyParam,
+  QueryParam,
   CurrentUser,
   ForbiddenError,
   Get,
+  Ctx,
   InternalServerError,
-  JsonController, NotFoundError, Param, Post, Put, UseBefore,
+  JsonController, NotFoundError, Param, Post, UseBefore,
   ContentType, Body
 } from 'routing-controllers'
 import {
-  IsString,
   IsBoolean,
   IsInt, IsNumber, Min, Max,
   IsInstance,
@@ -21,8 +22,9 @@ import {
 } from 'class-validator'
 import {Type} from 'class-transformer'
 import {getRepository, Raw} from 'typeorm'
-import BaseController from './base'
+import {Context} from 'koa'
 
+import BaseController from './base'
 import {resolve as resolveURL} from 'url'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
@@ -38,23 +40,23 @@ class NewRecord {
   @IsInt()
   @Min(0)
   @Max(1000000)
-  score: number
+  public score: number
 
   @IsNumber()
   @Min(0)
   @Max(1)
-  accuracy: number
+  public accuracy: number
 
   @Type(() => RecordDetails)
   @ValidateNested() // FIXME: 500 error "newValue_1.push is not a function" when post an array
   @IsInstance(RecordDetails)
-  details: RecordDetails
+  public details: RecordDetails
 
   @ArrayUnique() // TODO: check all mods are valid.
-  mods: string[]
+  public mods: string[]
 
   @IsBoolean()
-  ranked: boolean
+  public ranked: boolean
 }
 
 @JsonController('/levels')
@@ -70,13 +72,45 @@ export default class LevelController extends BaseController {
   private levelRepo = getRepository(Level)
   private chartRepo = getRepository(Chart)
 
+  public levelsPerPage = 18
+
   @Get('/:id')
   public getLevel(@Param('id') id: string) {
+    // TODO: check Authorization. Don't return anything if the level wasn't published.
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
       relations: ['package', 'bundle', 'charts'],
     })
-      .then((charts) => charts[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
+      .then((levels) => levels[0]) // uid is unique, so it's guaranteed to return at most 1 item here.
+      .then((level) => {
+        const result: any = level
+        result.bundle = level.bundle.toPlain()
+        result.package = level.package.toPlain()
+        return result
+      })
+  }
+
+  @Get('/')
+  public async getLevels(@QueryParam('page') pageNum: number = 0, @Ctx() ctx: Context) {
+    if (pageNum < 0 || !Number.isInteger(pageNum)) {
+      throw new BadRequestError('Page has to be a positive integer!')
+    }
+    const totalCount: number = await this.levelRepo.count({ where: { published: true }})
+    ctx.set('X-Total-Page', Math.floor(totalCount / this.levelsPerPage).toString())
+    ctx.set('X-Record-Count', totalCount.toString())
+    ctx.set('X-Current-Page', pageNum.toString())
+    return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
+      relations: ['bundle'],
+      where: { published: true },
+      order: { modificationDate: 'DESC' },
+      skip: pageNum * this.levelsPerPage,
+      take: this.levelsPerPage,
+    })
+      .then((levels) => levels.map((level) => {
+        const result: any = level
+        result.bundle = level.bundle.toPlain()
+        return result
+      }))
   }
 
   private levelRatingCacheKey = 'cytoid:level:ratings:'
