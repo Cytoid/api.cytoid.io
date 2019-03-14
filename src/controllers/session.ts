@@ -1,5 +1,5 @@
 import { authenticate } from 'koa-passport'
-import {CurrentUser, JsonController, Post, Delete, UseBefore, Ctx} from 'routing-controllers'
+import {CurrentUser, JsonController, Post, Delete, Get, UseBefore, Ctx, Authorized} from 'routing-controllers'
 import {signJWT} from '../authentication'
 import User, { IUser } from '../models/user'
 import BaseController from './base'
@@ -21,5 +21,13 @@ export default class UserController extends BaseController {
   public logout(@Ctx() ctx: Context, @CurrentUser() user: IUser): null {
     ctx.logout()
     return null
+  }
+
+  @Get('/')
+  @Authorized()
+  public status(@Ctx() ctx: Context, @CurrentUser() user: IUser): any {
+    return {
+      user,
+    }
   }
 }

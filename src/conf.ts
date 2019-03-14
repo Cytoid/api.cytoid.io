@@ -11,6 +11,7 @@ export interface AppConfiguration extends IConfig {
   apiURL: string
   assetsURL: string
   webURL: string
+  functionURL: string
 }
 
 const conf: AppConfiguration = require('config')

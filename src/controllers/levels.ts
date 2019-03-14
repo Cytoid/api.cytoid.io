@@ -65,7 +65,7 @@ export default class LevelController extends BaseController {
   public createPackageConfig = {
     packageLen: 30,
     redisPrefix: 'cytoid:level:create:',
-    unpkgURL: 'http://localhost:5000/resolve-level-files',
+    unpkgURL: conf.functionURL + '/resolve-level-files',
     packagePath: 'levels/packages/',
     bundlePath: 'levels/bundles/',
   }

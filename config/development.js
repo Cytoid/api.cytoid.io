@@ -11,4 +11,5 @@ module.exports = {
   apiURL: 'https://api.cytoid.io',
   assetsURL: 'https://assets.cytoid.io',
   webURL: 'http://localhost:8080',
+  functionURL: 'http://localhost:5000',
 }
