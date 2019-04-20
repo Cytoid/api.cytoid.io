@@ -11,9 +11,9 @@ import {
   Post,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
+import {signJWT} from '../authentication'
 import User, {IUser} from '../models/user'
 import BaseController from './base'
-import {signJWT} from '../authentication'
 
 class NewUser {
   @IsString()

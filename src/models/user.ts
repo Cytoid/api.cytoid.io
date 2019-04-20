@@ -5,8 +5,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from 'typeorm'
+import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
 import PasswordManager from '../utils/password'
-const passwordManager = new PasswordManager()
+export const passwordManager = new PasswordManager()
 
 export interface IUser {
   id: string
@@ -40,7 +41,7 @@ export default class User implements IUser {
 
   @Exclude()
   @Column('bytea')
-  private password: Buffer
+  public password: Buffer
 
   public setPassword(password: string) {
     return passwordManager.hashPassword(password)
@@ -60,5 +61,20 @@ export default class User implements IUser {
       name: this.name,
       uid: this.uid,
     }
+  }
+
+  get mailClient(): IMailTransport | null {
+    if (!this.email) {
+      return null
+    }
+    const mailClient = new MailTransport()
+    mailClient.recipient = {
+      email: this.email,
+      name: this.name,
+    }
+    mailClient.sharedData = {
+      name: this.name,
+    }
+    return mailClient
   }
 }

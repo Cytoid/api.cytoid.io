@@ -12,4 +12,7 @@ module.exports = {
   assetsURL: 'https://assets.cytoid.io',
   webURL: 'http://localhost:8080',
   functionURL: 'http://localhost:5000',
+  emailTemplates: {
+    passwordReset: 'password-reset'
+  },
 }

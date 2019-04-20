@@ -5,4 +5,12 @@ module.exports = {
   apiURL: 'https://api.cytoid.io',
   assetsURL: 'https://assets.cytoid.io',
   webURL: 'http://localhost:8080',
+  emailSender: {
+    name: 'Cytoid',
+    email: 'robot@cytoid.io',
+  },
+  emailReplyTo: {
+    name: 'Cytoid Support',
+    email: 'support@cytoid.io',
+  },
 }

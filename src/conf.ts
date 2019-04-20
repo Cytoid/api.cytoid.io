@@ -1,8 +1,9 @@
 import { IConfig } from 'config'
 import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions'
 import { ClientOpts } from 'redis'
+import { IClient as IEmailClient } from './utils/mail'
 
-export interface AppConfiguration extends IConfig {
+export interface IAppConfiguration extends IConfig {
   host: string
   port: number
   postgres: ConnectionOptions
@@ -12,7 +13,15 @@ export interface AppConfiguration extends IConfig {
   assetsURL: string
   webURL: string
   functionURL: string
+
+  emailSecretKey: string
+
+  emailSender: IEmailClient
+  emailReplyTo?: IEmailClient
+  emailTemplates: {
+    passwordReset: string
+  }
 }
 
-const conf: AppConfiguration = require('config')
+const conf: IAppConfiguration = require('config')
 export default conf
