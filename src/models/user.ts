@@ -6,8 +6,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm'
 import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
+
 import PasswordManager from '../utils/password'
-export const passwordManager = new PasswordManager()
 
 export interface IUser {
   id: string
@@ -44,14 +44,14 @@ export default class User implements IUser {
   public password: Buffer
 
   public setPassword(password: string) {
-    return passwordManager.hashPassword(password)
+    return PasswordManager.hash(password)
       .then((passwordHash) => {
         this.password = passwordHash
         return passwordHash
       })
   }
   public checkPassword(password: string) {
-    return PasswordManager.checkPassword(this.password, password)
+    return PasswordManager.check(password, this.password)
   }
 
   public serialize(): IUser {

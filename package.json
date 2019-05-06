@@ -23,6 +23,7 @@
     "reflect-metadata": "^0.1.13",
     "routing-controllers": "^0.7.7",
     "typeorm": "^0.2.14",
+    "unihash": "^0.1.1",
     "winston": "^3.2.1"
   },
   "devDependencies": {

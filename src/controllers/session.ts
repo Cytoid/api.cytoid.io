@@ -15,7 +15,8 @@ import {
 } from 'routing-controllers'
 import {signJWT} from '../authentication'
 import config from '../conf'
-import User, { IUser, passwordManager } from '../models/user'
+import User, { IUser } from '../models/user'
+import PasswordManager from '../utils/password'
 import BaseController from './base'
 import {VerificationCodeManager} from '../utils/verification_code'
 
@@ -89,16 +90,7 @@ export default class UserController extends BaseController {
       throw new NotFoundError('The verification code is not valid.')
     }
 
-    const user = await this.db.findOne(User, {
-      where: [
-        { email },
-      ],
-    })
-    if (!user) {
-      // TODO: this is quite unusual. Log this.
-      throw new NotFoundError('The specified email was not found')
-    }
-    const hashedPassword = await passwordManager.hashPassword(password)
+    const hashedPassword = await PasswordManager.hash(password)
     await this.db.createQueryBuilder()
       .update(User)
       .set({ password: hashedPassword })
