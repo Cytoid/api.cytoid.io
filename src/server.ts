@@ -8,10 +8,7 @@ import {createServer} from 'http2'
 
 if (process.env['HTTP2']) {
   createServer(app.callback())
-    .listen(port, (err: any) => {
-      if (err) {
-        throw new Error(err)
-      }
+    .listen(port, () => {
 
       logger.debug('HTTP2 Listening on port: ' + port)
     })

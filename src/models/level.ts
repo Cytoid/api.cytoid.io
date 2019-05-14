@@ -54,6 +54,9 @@ export class Level {
   @Column({ default: false })
   public published: boolean
 
+  @Column('varchar',  {nullable: true})
+  public censored?: string
+
   @Column('varchar', { array: true, length: 30 })
   public tags: string[]
 
@@ -70,9 +73,8 @@ export class Level {
   @UpdateDateColumn({ name: 'date_modified' })
   public modificationDate: Date
 
-  @Exclude()
   @Column({nullable: true})
-  public packageId?: number
+  public packagePath?: string
 
   @Type(() => File)
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })

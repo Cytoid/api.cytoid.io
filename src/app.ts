@@ -39,9 +39,9 @@ useKoaServer(app, {
   authorizationChecker,
   currentUserChecker,
   cors: {
-    origin: conf.webURL,
+    // origin: conf.webURL,
     credentials: true,
-  }
+  },
 })
 
 import * as morgan from 'koa-morgan'
@@ -49,10 +49,10 @@ import * as morgan from 'koa-morgan'
 // @ts-ignore
 app.use(morgan('combined', {
   stream: {
-    write (message: string) {
+    write(message: string) {
       logger.debug(message)
-    }
-  }
+    },
+  },
 }))
 
 export default app

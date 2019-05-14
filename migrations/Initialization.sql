@@ -7,6 +7,7 @@ CREATE TABLE "users" (
   "email_verified"    boolean,
   "birthday"          TIMESTAMP,
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
+  "active"            boolean   NOT NULL             DEFAULT true,
   CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid"),
   CONSTRAINT "USER_EMAIL_UNIQUE" UNIQUE ("email")
 );
@@ -27,12 +28,13 @@ CREATE TABLE "levels" (
   "duration"      real           NOT NULL,
   "description"   text           NOT NULL,
   "published"     boolean        NOT NULL DEFAULT false,
+  "censored"      varchar,
   "tags"          varchar(30) [] NOT NULL,
   "date_created"  TIMESTAMP      NOT NULL DEFAULT now(),
   "date_modified" TIMESTAMP      NOT NULL DEFAULT now(),
   "ownerId"       uuid,
-  "packageId"     varchar,
-  "bundleId"      varchar,
+  "packagePath"   varchar,
+  "bundlePath"    varchar,
   CONSTRAINT "LEVEL_UID_UNIQUE" UNIQUE ("uid")
 );
 CREATE TABLE "charts" (
@@ -67,9 +69,9 @@ ALTER TABLE "files"
 ALTER TABLE "levels"
   ADD CONSTRAINT "LEVELS_FK_OWNER" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE NO ACTION;
 ALTER TABLE "levels"
-  ADD CONSTRAINT "LEVELS_FK_PACKAGE" FOREIGN KEY ("packageId") REFERENCES "files" ("path") ON DELETE SET NULL ON UPDATE NO ACTION;
+  ADD CONSTRAINT "LEVELS_FK_PACKAGE" FOREIGN KEY ("packagePath") REFERENCES "files" ("path") ON DELETE SET NULL ON UPDATE NO ACTION;
 ALTER TABLE "levels"
-  ADD CONSTRAINT "LEVELS_FK_BUNDLE" FOREIGN KEY ("bundleId") REFERENCES "files" ("path") ON DELETE SET NULL ON UPDATE NO ACTION;
+  ADD CONSTRAINT "LEVELS_FK_BUNDLE" FOREIGN KEY ("bundlePath") REFERENCES "files" ("path") ON DELETE SET NULL ON UPDATE NO ACTION;
 ALTER TABLE "charts"
   ADD CONSTRAINT "CHARTS_FK_LEVEL" FOREIGN KEY ("levelId") REFERENCES "levels" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 ALTER TABLE "level_ratings"

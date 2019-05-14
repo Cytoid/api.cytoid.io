@@ -79,7 +79,7 @@ export default class LevelController extends BaseController {
     // TODO: check Authorization. Don't return anything if the level wasn't published.
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
-      relations: ['package', 'bundle', 'charts'],
+      relations: ['bundle', 'charts'],
     })
       .then((levels) => {
         if (levels.length === 0) {
@@ -88,7 +88,8 @@ export default class LevelController extends BaseController {
         const level = levels[0]
         const result: any = level
         result.bundle = level.bundle.toPlain()
-        result.package = level.package.toPlain()
+        result.package = result.packageId
+        delete result.packageId
         return result
       })
   }
@@ -250,7 +251,7 @@ FROM ratings`,
     await this.db.save(file, {transaction: false})
     const sessionData: ILevelCreateSessionData = {
       pkgName: packageName,
-      id: file.id,
+      path,
       userId: user.id,
     }
     await redis.setexAsync(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
@@ -332,7 +333,7 @@ FROM ratings`,
       music_preview: packageMeta.music_preview && packageMeta.music_preview.path,
       background: packageMeta.background && packageMeta.background.path,
     }
-    level.packageId = sessionData.id
+    level.packagePath = sessionData.path
 
     const charts = packageMeta.charts.map((chart) => {
       const entity = new Chart()
@@ -347,7 +348,7 @@ FROM ratings`,
       const qb = tr.createQueryBuilder()
       await qb.update(File)
         .set({created: true})
-        .where('id = :id', {id: sessionData.id})
+        .where('path = :path', {path: sessionData.path})
         .execute()
       await tr.save(level.bundle)
       await tr.save(level)
@@ -450,7 +451,7 @@ WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
 
 interface ILevelCreateSessionData {
   pkgName: string
-  id: number
+  path: string
   userId?: string
 }
 
