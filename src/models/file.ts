@@ -41,8 +41,9 @@ export default class File {
 
   @Column({default: false})
   public created: boolean
-  public constructor(path: string) {
+  public constructor(path: string, type: string) {
     this.path = path
+    this.type = type
   }
 
   public toPlain(baseURL?: string): string | IDirectory {

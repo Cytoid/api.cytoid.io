@@ -244,7 +244,7 @@ FROM ratings`,
       .toString('base64')
       .replace(/\W/g, '')
     const path = this.createPackageConfig.packagePath + packageName
-    const file = new File(path)
+    const file = new File(path, 'package')
     file.ownerId = user.id
     const key = (await randomBytes(15)).toString('base64')
 
@@ -325,7 +325,7 @@ FROM ratings`,
     }
     }
 
-    level.bundle = new File(bundlePath) as ILevelBundle
+    level.bundle = new File(bundlePath, 'bundle') as ILevelBundle
     level.bundle.ownerId = user.id
     level.bundle.created = true
     level.bundle.content = {
