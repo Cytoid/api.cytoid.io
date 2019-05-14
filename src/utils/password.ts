@@ -1,7 +1,7 @@
 import PasswordHash, {
-	Scrypt,
-	Bcrypt,
-	RegisterHasher,
+  Bcrypt,
+  RegisterHasher,
+  Scrypt,
 } from 'unihash'
 
 RegisterHasher(Scrypt, 0x00)

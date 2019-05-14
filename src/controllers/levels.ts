@@ -11,7 +11,7 @@ import {
   Ctx,
   InternalServerError,
   JsonController, NotFoundError, Param, Post, UseBefore,
-  ContentType, Body
+  ContentType, Body,
 } from 'routing-controllers'
 import {
   IsBoolean,
@@ -138,8 +138,7 @@ export default class LevelController extends BaseController {
           .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
           .getRawOne()
           .then((a) => {
-            if (!a) throw new NotFoundError('The specified level does not exist.')
-            return a.rating
+            return a ? a.rating : null
           })
         const result = JSON.parse(cacheVal)
         result.rating = rating
@@ -172,7 +171,7 @@ FROM ratings`,
         const rating = parseInt(a.rating, 10)
         delete a.rating
         await redis.setexAsync(this.levelRatingCacheKey + id, 3600, JSON.stringify(a))
-        if (rating) a.rating = rating
+        if (rating) { a.rating = rating }
         return a
       })
   }
@@ -273,7 +272,7 @@ FROM ratings`,
     if (!sessionData) {
       throw new NotFoundError('Access Key not exist or expired')
     }
-    if (sessionData.userId != user.id) {
+    if (sessionData.userId !== user.id) {
       throw new ForbiddenError('Must be logged in as the user who originally started the operation!')
     }
     const packagePath = this.createPackageConfig.packagePath + sessionData.pkgName
@@ -374,22 +373,26 @@ FROM ratings`,
       .select('name')
       .addSelect('difficulty')
       .from(Chart, 'chart')
-      .where('type = :chartType', {chartType: chartType})
+      .where('type = :chartType', {chartType})
       .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
       .getRawOne()
-      .then(a => {
+      .then((a) => {
         a.level = id
         a.type = chartType
         return a
       })
   }
 
-  private queryLeaderboard (chartId?: number) {
+  private queryLeaderboard(chartId?: number) {
     return `
 SELECT *, rank() OVER (ORDER BY score DESC, date ASC)
 FROM (SELECT DISTINCT ON ("ownerId") *
       FROM records
-      WHERE "chartId" = ${chartId ? '$1' : '(SELECT id FROM charts WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1) AND type = $2)'}
+      WHERE "chartId" = ${
+      chartId ?
+        '$1' :
+        '(SELECT id FROM charts WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1) AND type = $2)'
+      }
       ORDER BY "ownerId", score DESC, date ASC) a`
   }
 
@@ -421,7 +424,7 @@ WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
     qb.subQuery()
       .select('id')
       .from(Chart, 'chart')
-      .where('type = :chartType', {chartType: chartType})
+      .where('type = :chartType', {chartType})
       .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
     return  qb.insert()
       .into(Record)
@@ -431,12 +434,12 @@ WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
         accuracy: record.accuracy,
         details: record.details,
         mods: record.mods,
-        chart: () => chartQuery.getQuery()
+        chart: () => chartQuery.getQuery(),
       })
       .setParameters(chartQuery.getParameters())
       .returning('"chartId", id')
       .execute()
-      .catch(error => {
+      .catch((error) => {
         if (error.table === 'records' && error.column === 'chartId' && error.code === '23502') {
           throw new NotFoundError('The specified chart was not found.')
         }

@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
   Entity,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
 } from 'typeorm'
 import { resolve as resolveURL } from 'url'
 
@@ -18,11 +18,12 @@ export interface IDirectory {
 
 @Entity('files')
 export default class File {
-  @PrimaryGeneratedColumn()
-  public id: number
 
-  @Column({unique: true})
+  @PrimaryColumn()
   public path: string
+
+  @Column()
+  public type: string
 
   @Column('jsonb', { nullable: true, comment: 'null for standalone files' })
   public content?: IDirectory
