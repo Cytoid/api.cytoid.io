@@ -11,7 +11,7 @@ import {
   Ctx,
   InternalServerError,
   JsonController, NotFoundError, Param, Post, UseBefore,
-  ContentType, Body,
+  ContentType, Body, HttpError,
 } from 'routing-controllers'
 import {
   IsBoolean,
@@ -21,7 +21,7 @@ import {
   ArrayUnique,
 } from 'class-validator'
 import {Type} from 'class-transformer'
-import {getRepository, Raw} from 'typeorm'
+import {getRepository, In} from 'typeorm'
 import {Context} from 'koa'
 
 import BaseController from './base'
@@ -75,11 +75,11 @@ export default class LevelController extends BaseController {
   public levelsPerPage = 18
 
   @Get('/:id')
-  public getLevel(@Param('id') id: string) {
-    // TODO: check Authorization. Don't return anything if the level wasn't published.
+  @UseBefore(OptionalAuthenticate)
+  public getLevel(@Param('id') id: string, @CurrentUser() user?: IUser) {
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
-      relations: ['bundle', 'charts'],
+      relations: ['bundle', 'charts', 'owner'],
     })
       .then((levels) => {
         if (levels.length === 0) {
@@ -89,7 +89,19 @@ export default class LevelController extends BaseController {
         const result: any = level
         result.bundle = level.bundle.toPlain()
         result.package = result.packageId
-        delete result.packageId
+        delete result.packagePath
+
+        if (user && (user.id === level.ownerId)) {
+          return result
+        } // If the user was the owner, return the result without all the checks.
+
+        if (level.censored !== null && level.censored !== 'ccp') {
+          throw new HttpError(451, 'censored:' + level.censored)
+        } // If the level was censored, return 451. On the global site ignore ccp censorship.
+
+        if (!level.published) {
+          throw new ForbiddenError('unpublished')
+        }
         return result
       })
   }
@@ -103,9 +115,12 @@ export default class LevelController extends BaseController {
     ctx.set('X-Total-Page', Math.floor(totalCount / this.levelsPerPage).toString())
     ctx.set('X-Record-Count', totalCount.toString())
     ctx.set('X-Current-Page', pageNum.toString())
-    return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
+    return this.levelRepo.find({
       relations: ['bundle'],
-      where: { published: true },
+      where: [
+        { published: true, censored: In(['ccp']) },
+        { published: true, censored: null },
+      ], // For cn site this is just null
       order: { modificationDate: 'DESC' },
       skip: pageNum * this.levelsPerPage,
       take: this.levelsPerPage,
@@ -386,7 +401,10 @@ FROM ratings`,
 
   private queryLeaderboard(chartId?: number) {
     return `
-SELECT *, rank() OVER (ORDER BY score DESC, date ASC)
+SELECT record.*,
+       users.uid as "user/uid", users.name as "user/name",
+       users.email as "user/email",
+       rank() OVER (ORDER BY score DESC, date ASC)
 FROM (SELECT DISTINCT ON ("ownerId") *
       FROM records
       WHERE "chartId" = ${
@@ -394,12 +412,30 @@ FROM (SELECT DISTINCT ON ("ownerId") *
         '$1' :
         '(SELECT id FROM charts WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1) AND type = $2)'
       }
-      ORDER BY "ownerId", score DESC, date ASC) a`
+      ORDER BY "ownerId", score DESC, date ASC) record
+LEFT JOIN users on users.id = record."ownerId"
+`
+  }
+  private formatLeaderboardQueryResult(result: any) {
+    result.owner = {
+      uid: result['user/uid'],
+      name: result['user/name'],
+      email: result['user/email'],
+      id: result.ownerId,
+    }
+    delete result['user/uid']
+    delete result['user/name']
+    delete result['user/email']
+    delete result.ownerId
+    result.rank = parseInt(result.rank, 10)
+    return result
   }
 
   @Get('/:id/charts/:chartType/ranking')
   public getChartRanking(@Param('id') id: string, @Param('chartType') chartType: string) {
     return this.db.query(this.queryLeaderboard(), [id, chartType])
+      .then((result) => result.map(this.formatLeaderboardQueryResult))
+
   }
 
   @Get('/:id/charts/:chartType/ranking/my')
@@ -411,6 +447,7 @@ SELECT *
 FROM leaderboard
 WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
       [id, chartType, user.id])
+    .then((result) => result.map(this.formatLeaderboardQueryResult))
   }
 
   @Post('/:id/charts/:chartType/records')

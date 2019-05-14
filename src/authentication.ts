@@ -81,5 +81,6 @@ export function OptionalAuthenticate(context: any, next: (err?: Error) => Promis
     if (context.state.user)
       break
   }
+  context.status = 200
   return next()
 }
