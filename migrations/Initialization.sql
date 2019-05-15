@@ -20,7 +20,7 @@ CREATE TABLE "users" (
   "avatarPath"        varchar   REFERENCES "files"  ("path") ON DELETE SET NULL,
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
   "active"            boolean   NOT NULL             DEFAULT true,
-  CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid"),
+  CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid")
 );
 ALTER TABLE "emails" ADD CONSTRAINT "EMAIL_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
 ALTER TABLE "files" ADD CONSTRAINT "FILE_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
