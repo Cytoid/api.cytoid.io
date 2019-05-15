@@ -13,6 +13,7 @@ import {
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
 import User, {Email, IUser} from '../models/user'
+import Profile from '../models/profile'
 import BaseController from './base'
 
 class NewUser {
@@ -64,6 +65,9 @@ export default class UserController extends BaseController {
         address: newUser.email,
         ownerId: user.id,
       })
+      await transaction.insert(Profile, {
+        id: user.id,
+      })
       await transaction.update(User, {
         where: { id: user.id },
       }, {
@@ -72,7 +76,7 @@ export default class UserController extends BaseController {
       return user
     })
       .catch((error) => {
-        if (error.constraint === 'USER_EMAIL_UNIQUE') {
+        if (error.constraint === 'emails_pkey') {
           throw new ForbiddenError('duplicated email address')
         } else if (error.constraint === 'USER_UID_UNIQUE') {
           throw new ForbiddenError('duplicated uid')

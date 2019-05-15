@@ -1,6 +1,11 @@
-import {Column, Entity, PrimaryColumn, ManyToOne} from 'typeorm'
 import {Type} from 'class-transformer'
+import {
+  Column,
+  Entity,
+  JoinColumn, ManyToOne,
+  OneToOne, PrimaryColumn} from 'typeorm'
 import File from './file'
+import User from './user'
 
 @Entity('profiles')
 export default class Profile {
@@ -19,4 +24,8 @@ export default class Profile {
 
   @Column('varchar', { array: true })
   public badges: string[]
+
+  @OneToOne(() => User)
+  @JoinColumn({ name: 'id' })
+  public user: User
 }

@@ -1,4 +1,4 @@
-import { Exclude, Type } from 'class-transformer'
+import { Exclude, Expose, Type } from 'class-transformer'
 import {
   Column,
   CreateDateColumn,
@@ -7,10 +7,12 @@ import {
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm'
+import { createHash } from 'crypto'
 import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
 
 import PasswordManager from '../utils/password'
 import File from './file'
+import config from '../conf'
 
 export interface IUser {
   id: string
@@ -31,11 +33,17 @@ export default class User implements IUser {
   public name: string
 
   @Column({ unique: true })
+  @Exclude()
   public email: string
 
   @Type(() => File)
   @ManyToOne(() => File, (file) => file.path)
+  @Exclude()
   public avatar?: File
+
+  @Column({ nullable: true })
+  @Exclude()
+  public avatarPath?: string
 
   @CreateDateColumn({ name: 'date_registration' })
   public registrationDate: Date
@@ -44,6 +52,18 @@ export default class User implements IUser {
   @Column('bytea')
   public password: Buffer
 
+  @Expose()
+  public get avatarURL(): string | null {
+    if (this.avatarPath) {
+      return config.assetsURL + this.avatarPath
+    }
+    if (this.email) {
+      const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
+      return config.gravatarURL + '/' + hash
+    }
+    return null
+  }
+
   public setPassword(password: string) {
     return PasswordManager.hash(password)
       .then((passwordHash) => {
@@ -51,6 +71,7 @@ export default class User implements IUser {
         return passwordHash
       })
   }
+
   public checkPassword(password: string) {
     return PasswordManager.check(password, this.password)
   }

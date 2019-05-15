@@ -14,14 +14,13 @@ CREATE TABLE "files" (
 CREATE TABLE "users" (
   "id"                uuid      PRIMARY KEY DEFAULT uuid_generate_v4(),
   "uid"               varchar,
-  "name"              varchar   NOT NULL DEFAULT '',
+  "name"              varchar,
   "password"          bytea,
   "email"             varchar   REFERENCES "emails" ("address") ON DELETE SET NULL,
   "avatarPath"        varchar   REFERENCES "files"  ("path") ON DELETE SET NULL,
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
   "active"            boolean   NOT NULL             DEFAULT true,
   CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid"),
-  CONSTRAINT "USER_EMAIL_UNIQUE" UNIQUE ("email")
 );
 ALTER TABLE "emails" ADD CONSTRAINT "EMAIL_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
 ALTER TABLE "files" ADD CONSTRAINT "FILE_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
