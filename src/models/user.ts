@@ -1,13 +1,16 @@
-import { Exclude } from 'class-transformer'
+import { Exclude, Type } from 'class-transformer'
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn, ManyToOne,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm'
 import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
 
 import PasswordManager from '../utils/password'
+import File from './file'
 
 export interface IUser {
   id: string
@@ -27,14 +30,12 @@ export default class User implements IUser {
   @Column()
   public name: string
 
-  @Column({ unique: true, nullable: true })
-  public email?: string
+  @Column({ unique: true })
+  public email: string
 
-  @Column({ name: 'email_verified', nullable: true })
-  public emailVerified?: boolean
-
-  @Column({ nullable: true })
-  public birthday?: Date
+  @Type(() => File)
+  @ManyToOne(() => File, (file) => file.path)
+  public avatar?: File
 
   @CreateDateColumn({ name: 'date_registration' })
   public registrationDate: Date
@@ -77,4 +78,20 @@ export default class User implements IUser {
     }
     return mailClient
   }
+}
+
+@Entity('emails')
+export class Email {
+  @PrimaryColumn()
+  public address: string
+
+  @Column()
+  public verified: boolean
+
+  @Type(() => User)
+  @ManyToOne(() => User, (user) => user.id)
+  public owner: User
+
+  @Column()
+  public ownerId: string
 }

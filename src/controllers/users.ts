@@ -12,36 +12,24 @@ import {
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
-import User, {IUser} from '../models/user'
+import User, {Email, IUser} from '../models/user'
 import BaseController from './base'
 
 class NewUser {
   @IsString()
-  public name: string
+  @IsOptional()
+  public name?: string
 
   @IsString()
   @IsOptional()
-  public uid: string
+  public uid?: string
 
   @MinLength(8)
   public password: string
 
   @IsEmail()
-  public email: string
-
   @IsOptional()
-  @IsDateString()
-  public birthday?: string
-
-  public async create(): Promise<User> {
-    const user = new User()
-    user.name = this.name
-    await user.setPassword(this.password)
-    user.email = this.email
-    user.uid = this.uid
-    user.birthday = this.birthday ? new Date(Date.parse(this.birthday)) : null
-    return user
-  }
+  public email?: string
 }
 
 @JsonController('/users')
@@ -65,12 +53,24 @@ export default class UserController extends BaseController {
 
   @Post('/')
   public createUser(@Body() newUser: NewUser) {
-    return newUser.create()
-      .then((user) => {
-        user.emailVerified = user.email ? false : null
-        return user
+    return this.db.transaction(async (transaction) => {
+      let user = new User()
+      user.name = newUser.name
+      user.uid = newUser.uid
+      await user.setPassword(newUser.password)
+
+      user = await transaction.save(user)
+      await transaction.insert(Email, {
+        address: newUser.email,
+        ownerId: user.id,
       })
-      .then((user) => this.db.save(user, {transaction: false}))
+      await transaction.update(User, {
+        where: { id: user.id },
+      }, {
+        email: newUser.email,
+      })
+      return user
+    })
       .catch((error) => {
         if (error.constraint === 'USER_EMAIL_UNIQUE') {
           throw new ForbiddenError('duplicated email address')
