@@ -46,10 +46,8 @@ passport.use(
     const passwordVerified = await user.checkPassword(password)
     if (passwordVerified === PasswordValidity.Invalid) { return done(null, false) }
     if (passwordVerified === PasswordValidity.ValidOutdated) {
-      const newpassword = await user.setPassword(password)
-      await getManager().update(User, {
-        where: {id: user.id},
-      }, { password: newpassword })
+      await user.setPassword(password)
+      await db.save(user, {transaction: false})
     }
     return done(null, user)
   }),

@@ -87,6 +87,10 @@ export class Level {
   @Type(() => Chart)
   @OneToMany(() => Chart, (chart) => chart.level)
   public charts: Chart[]
+
+  @Column()
+  public downloads: number
+
   constructor() {
     this.version = 1
     this.title = ''

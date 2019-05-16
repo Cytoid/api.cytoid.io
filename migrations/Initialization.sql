@@ -47,6 +47,7 @@ CREATE TABLE "levels" (
   "ownerId"       uuid REFERENCES "users" ("id") ON DELETE SET NULL,
   "packagePath"   varchar REFERENCES "files" ("path") ON DELETE SET NULL,
   "bundlePath"    varchar REFERENCES "files" ("path") ON DELETE SET NULL,
+  "downloads"     integer        NOT NULL DEFAULT 0,
   CONSTRAINT "LEVEL_UID_UNIQUE" UNIQUE ("uid")
 );
 CREATE TABLE "charts" (
