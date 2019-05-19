@@ -582,9 +582,9 @@
   integrity sha1-Pd4x+NonTf65Dpar9VA4/vRihfA=
 
 "@types/node@^11.10.4":
-  version "11.13.10"
-  resolved "https://registry.npm.taobao.org/@types/node/download/@types/node-11.13.10.tgz#4df59e5966b56f512bac98898bcbee5067411f0f"
-  integrity sha1-TfWeWWa1b1ErrJiJi8vuUGdBHw8=
+  version "11.13.11"
+  resolved "https://registry.npm.taobao.org/@types/node/download/@types/node-11.13.11.tgz#65766752cbbe198ff353ea861a23b6484cf33df4"
+  integrity sha1-ZXZnUsu+GY/zU+qGGiO2SEzzPfQ=
 
 "@types/passport-jwt@^3.0.1":
   version "3.0.1"
@@ -3222,9 +3222,9 @@ koa-router@^7.4.0:
     urijs "^1.19.0"
 
 koa-session@^5.10.1:
-  version "5.11.0"
-  resolved "https://registry.npm.taobao.org/koa-session/download/koa-session-5.11.0.tgz#e050119705898be6279772b72927e955a2b44a8e"
-  integrity sha1-4FARlwWJi+Ynl3K3KSfpVaK0So4=
+  version "5.12.0"
+  resolved "https://registry.npm.taobao.org/koa-session/download/koa-session-5.12.0.tgz#1e6c6cea86b8ca2cca921c4a8881cfbfcc2628e0"
+  integrity sha1-Hmxs6oa4yizKkhxKiIHPv8wmKOA=
   dependencies:
     crc "^3.4.4"
     debug "^3.1.0"

@@ -90,15 +90,6 @@ export class Level {
 
   @Column()
   public downloads: number
-
-  constructor() {
-    this.version = 1
-    this.title = ''
-    this.metadata = {}
-    this.duration = 0
-    this.description = ''
-    this.tags = []
-  }
 }
 
 export interface ILevelBundleDirectory extends IDirectory {

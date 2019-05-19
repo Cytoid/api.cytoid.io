@@ -73,6 +73,6 @@ export default class Record {
   @Column('varchar', { array: true, length: 32})
   public mods: string[]
 
-  @Column('integer', { nullable: true, comment: 'Ranking when made the record. Null in unranked mode' })
-  public ranking?: number
+  @Column('boolean', { nullable: false })
+  public ranked: boolean
 }

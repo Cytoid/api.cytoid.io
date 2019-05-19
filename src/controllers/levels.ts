@@ -21,7 +21,7 @@ import {
   ArrayUnique,
 } from 'class-validator'
 import {Type} from 'class-transformer'
-import {getRepository, In} from 'typeorm'
+import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 import {Context} from 'koa'
 
 import BaseController from './base'
@@ -34,6 +34,7 @@ import {Chart, ILevelBundle, Level, Rating} from '../models/level'
 import { IUser } from '../models/user'
 import Record, {RecordDetails} from '../models/record'
 import Storage from '../storage'
+import RangeNotation from '../utils/RangeNotation'
 
 class NewRecord {
 
@@ -80,8 +81,7 @@ export default class LevelController extends BaseController {
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
       relations: ['bundle', 'charts', 'owner'],
-    })
-      .then((levels) => {
+    }).then((levels) => {
         if (levels.length === 0) {
           return undefined
         }
@@ -107,7 +107,13 @@ export default class LevelController extends BaseController {
   }
 
   @Get('/')
-  public async getLevels(@QueryParam('page') pageNum: number = 0, @Ctx() ctx: Context) {
+  public async getLevels(
+    @QueryParam('page') pageNum: number = 0,
+    @QueryParam('limit') pageLimit: number = 30,
+    @Ctx() ctx: Context) {
+    if (pageLimit > 30) {
+      pageLimit = 30
+    }
     if (pageNum < 0 || !Number.isInteger(pageNum)) {
       throw new BadRequestError('Page has to be a positive integer!')
     }
@@ -115,20 +121,78 @@ export default class LevelController extends BaseController {
     ctx.set('X-Total-Page', Math.floor(totalCount / this.levelsPerPage).toString())
     ctx.set('X-Record-Count', totalCount.toString())
     ctx.set('X-Current-Page', pageNum.toString())
-    return this.levelRepo.find({
-      relations: ['bundle'],
-      where: [
-        { published: true, censored: In(['ccp']) },
-        { published: true, censored: null },
-      ], // For cn site this is just null
-      order: { modificationDate: 'DESC' },
-      skip: pageNum * this.levelsPerPage,
-      take: this.levelsPerPage,
-    })
-      .then((levels) => levels.map((level) => {
-        const result: any = level
-        result.bundle = level.bundle.toPlain()
-        return result
+    const keyMap: {[index: string]: string} = {
+      creation_date: 'levels.date_created',
+      modification_date: 'levels.date_modified',
+      duration: 'levels.duration',
+      downloads: 'levels.downloads',
+    }
+    let query = this.db.createQueryBuilder(Level, 'levels')
+      .where("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
+      .leftJoin('levels.bundle', 'bundle', "bundle.type='bundle' AND bundle.created=true")
+      .leftJoin('levels.owner', 'owner')
+      .select([
+        'levels.title',
+        'levels.id',
+        'bundle.content',
+        'bundle.path',
+        'owner.uid',
+        'owner.email',
+        'owner.name',
+        '(SELECT json_agg(charts) from charts where charts."levelId"=levels.id) as charts',
+        '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
+      ])
+      .orderBy(keyMap[ctx.request.query.sort] || 'levels.date_created',
+        ((ctx.request.query.order || 'asc').toLowerCase() === 'desc') ? 'DESC' : 'ASC')
+      // .limit(pageLimit)
+      // .offset(pageLimit * pageNum)
+    let theChartsQb: SelectQueryBuilder<any> = null
+    function chartsQb() {
+      if (!theChartsQb) {
+        theChartsQb = query.subQuery()
+          .select('*')
+          .from('charts', 'charts')
+          .where('charts."levelId"=levels.id')
+      }
+      return theChartsQb
+    }
+    // Type filter. There exist a chart with designated type
+    if (ctx.request.query.type && ['easy', 'hard', 'extreme'].includes(ctx.request.query.type)) {
+      theChartsQb = chartsQb().andWhere('charts.type=:type', { type: ctx.request.query.type })
+    }
+
+    // Difficulty filter. There exist a chart satisfying the designated difficulty constraint
+    if (ctx.request.query.difficulty) {
+      const notation = ctx.request.query.difficulty
+      const rangeRegex = /(\d+)..(\d+)/
+      const thresholdRegex = /(\d+)([+-])/
+      if (parseInt(notation, 10)) {
+        theChartsQb = chartsQb().andWhere('charts.difficulty=:diff', {diff: parseInt(notation, 10)})
+      } else if (thresholdRegex.test(notation)) {
+        const [numstr, operator] = thresholdRegex.exec(notation)
+        const num = parseInt(numstr, 10)
+        if (operator === '+') {
+          theChartsQb = chartsQb().andWhere('charts.difficulty>=:num', { num })
+        } else if (operator === '-') {
+          theChartsQb = chartsQb().andWhere('charts.difficulty<=:num', { num })
+        }
+      } else if (rangeRegex.test(notation)) {
+        const [lowerStr, upperStr] = rangeRegex.exec(notation)
+        const lower = parseInt(lowerStr, 10)
+        const upper = parseInt(upperStr, 10)
+        theChartsQb = chartsQb().andWhere('charts.difficulty BETWEEN :lower AND :upper', { lower, upper })
+      }
+    }
+    if (theChartsQb) {
+      query = query.andWhere(`EXISTS${theChartsQb.getQuery()}`, theChartsQb.getParameters())
+    }
+    return query.getRawAndEntities()
+      .then(({entities, raw}) => entities.map((level: any, index) => {
+        const rawRecord = raw[index]
+        level.bundle = level.bundle.toPlain()
+        level.charts = rawRecord.charts
+        level.rating = parseFloat(rawRecord.rating) || null
+        return level
       }))
   }
 

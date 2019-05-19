@@ -41,7 +41,7 @@ CREATE TABLE "levels" (
   "description"   text           NOT NULL,
   "published"     boolean        NOT NULL DEFAULT false,
   "censored"      varchar,
-  "tags"          varchar(30) [] NOT NULL,
+  "tags"          varchar[]      NOT NULL,
   "date_created"  TIMESTAMP      NOT NULL DEFAULT now(),
   "date_modified" TIMESTAMP      NOT NULL DEFAULT now(),
   "ownerId"       uuid REFERENCES "users" ("id") ON DELETE SET NULL,
@@ -64,7 +64,7 @@ CREATE TABLE "level_ratings" (
   "levelId" integer  NOT NULL REFERENCES "levels" ("id") ON DELETE CASCADE,
   "userId"  uuid     NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE,
   CONSTRAINT "LEVEL_RATING_UNIQUE" UNIQUE ("levelId", "userId"),
-  CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating <= 10) AND (rating > 0)))
+  CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating <= 10) AND (rating >= 0)))
 );
 CREATE TABLE "records" (
   "id"       SERIAL         NOT NULL PRIMARY KEY,
@@ -73,7 +73,7 @@ CREATE TABLE "records" (
   "accuracy" real           NOT NULL,
   "details"  jsonb          NOT NULL,
   "mods"     varchar(32) [] NOT NULL DEFAULT '{}',
-  "ranking"  integer,
+  "ranked"   boolean        NOT NULL,
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
 );
