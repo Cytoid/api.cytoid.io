@@ -133,6 +133,7 @@ export default class LevelController extends BaseController {
       .select([
         'levels.title',
         'levels.id',
+        'levels.uid',
         'bundle.content',
         'bundle.path',
         'owner.uid',
