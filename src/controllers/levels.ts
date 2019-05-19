@@ -109,6 +109,7 @@ export default class LevelController extends BaseController {
   public async getLevels(
     @QueryParam('page') pageNum: number = 0,
     @QueryParam('limit') pageLimit: number = 30,
+    @QueryParam('order') sortOrder: string = 'asc',
     @Ctx() ctx: Context) {
     if (pageLimit > 30) {
       pageLimit = 30
@@ -116,21 +117,19 @@ export default class LevelController extends BaseController {
     if (pageNum < 0 || !Number.isInteger(pageNum)) {
       throw new BadRequestError('Page has to be a positive integer!')
     }
-    const totalCount: number = await this.levelRepo.count({ where: { published: true }})
-    ctx.set('X-Total-Page', Math.floor(totalCount / this.levelsPerPage).toString())
-    ctx.set('X-Record-Count', totalCount.toString())
-    ctx.set('X-Current-Page', pageNum.toString())
     const keyMap: {[index: string]: string} = {
       creation_date: 'levels.date_created',
       modification_date: 'levels.date_modified',
       duration: 'levels.duration',
       downloads: 'levels.downloads',
       rating: 'rating',
+      difficulty: (sortOrder === 'asc' ? 'max' : 'min') + '(charts.difficulty)',
     }
     let query = this.db.createQueryBuilder(Level, 'levels')
       .where("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
       .leftJoin('levels.bundle', 'bundle', "bundle.type='bundle' AND bundle.created=true")
       .leftJoin('levels.owner', 'owner')
+      .leftJoin('levels.charts', 'charts')
       .select([
         'levels.title',
         'levels.id',
@@ -139,11 +138,12 @@ export default class LevelController extends BaseController {
         'owner.uid',
         'owner.email',
         'owner.name',
-        '(SELECT json_agg(charts ORDER BY charts.difficulty) FROM charts WHERE charts."levelId"=levels.id) as charts',
+        'json_agg(charts ORDER BY charts.difficulty) as charts',
         '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
       ])
       .orderBy(keyMap[ctx.request.query.sort] || 'levels.date_created',
-        ((ctx.request.query.order || 'asc').toLowerCase() === 'desc') ? 'DESC' : 'ASC')
+        (sortOrder.toLowerCase() === 'desc') ? 'DESC' : 'ASC')
+      .groupBy('levels.id, bundle.path, owner.id')
       .limit(pageLimit)
       .offset(pageLimit * pageNum)
     let theChartsQb: SelectQueryBuilder<any> = null
@@ -187,22 +187,24 @@ export default class LevelController extends BaseController {
       query = query.andWhere(`EXISTS${theChartsQb.getQuery()}`, theChartsQb.getParameters())
     }
     if (ctx.request.query.featured === 'true') {
-      query = query.andWhere('levels.featured=true')
+      query = query.andWhere("(levels.metadata->'featured')::boolean=true")
     }
     if (ctx.request.query.uploader) {
       query = query.andWhere('owner.uid=:uid', { uid: ctx.request.query.uploader })
     }
-    if (ctx.request.query.charter) {
-
-    }
-    return query.getRawAndEntities()
-      .then(({entities, raw}) => entities.map((level: any, index) => {
-        const rawRecord = raw[index]
-        level.bundle = level.bundle.toPlain()
-        level.charts = rawRecord.charts
-        level.rating = parseFloat(rawRecord.rating) || null
-        return level
-      }))
+    return Promise.all([query.getRawAndEntities(), query.getCount()])
+      .then(([{entities, raw}, count]) => {
+        ctx.set('X-Total-Page', Math.floor(count / this.levelsPerPage).toString())
+        ctx.set('X-Total-Entries', count.toString())
+        ctx.set('X-Current-Page', pageNum.toString())
+        return entities.map((level: any, index) => {
+          const rawRecord = raw[index]
+          level.bundle = level.bundle.toPlain()
+          level.charts = rawRecord.charts
+          level.rating = parseFloat(rawRecord.rating) || null
+          return level
+        })
+      })
   }
 
   private levelRatingCacheKey = 'cytoid:level:ratings:'
