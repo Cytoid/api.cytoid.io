@@ -34,7 +34,6 @@ import {Chart, ILevelBundle, Level, Rating} from '../models/level'
 import { IUser } from '../models/user'
 import Record, {RecordDetails} from '../models/record'
 import Storage from '../storage'
-import RangeNotation from '../utils/RangeNotation'
 
 class NewRecord {
 
@@ -126,6 +125,7 @@ export default class LevelController extends BaseController {
       modification_date: 'levels.date_modified',
       duration: 'levels.duration',
       downloads: 'levels.downloads',
+      rating: 'rating',
     }
     let query = this.db.createQueryBuilder(Level, 'levels')
       .where("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
@@ -139,13 +139,13 @@ export default class LevelController extends BaseController {
         'owner.uid',
         'owner.email',
         'owner.name',
-        '(SELECT json_agg(charts) from charts where charts."levelId"=levels.id) as charts',
+        '(SELECT json_agg(charts ORDER BY charts.difficulty) FROM charts WHERE charts."levelId"=levels.id) as charts',
         '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
       ])
       .orderBy(keyMap[ctx.request.query.sort] || 'levels.date_created',
         ((ctx.request.query.order || 'asc').toLowerCase() === 'desc') ? 'DESC' : 'ASC')
-      // .limit(pageLimit)
-      // .offset(pageLimit * pageNum)
+      .limit(pageLimit)
+      .offset(pageLimit * pageNum)
     let theChartsQb: SelectQueryBuilder<any> = null
     function chartsQb() {
       if (!theChartsQb) {
@@ -185,6 +185,15 @@ export default class LevelController extends BaseController {
     }
     if (theChartsQb) {
       query = query.andWhere(`EXISTS${theChartsQb.getQuery()}`, theChartsQb.getParameters())
+    }
+    if (ctx.request.query.featured === 'true') {
+      query = query.andWhere('levels.featured=true')
+    }
+    if (ctx.request.query.uploader) {
+      query = query.andWhere('owner.uid=:uid', { uid: ctx.request.query.uploader })
+    }
+    if (ctx.request.query.charter) {
+
     }
     return query.getRawAndEntities()
       .then(({entities, raw}) => entities.map((level: any, index) => {
@@ -366,8 +375,10 @@ FROM ratings`,
         if (error.response && error.response.data) {
           throw new BadRequestError(error.response.data.message || 'Unknown Error')
         }
+        console.log(error)
         throw new InternalServerError('Errors in package analytics services')
       })
+    console.log('func returned...')
     const packageMeta: PackageMeta.IMeta = leveldata.metadata
 
     // Convert packageMeta into database models
