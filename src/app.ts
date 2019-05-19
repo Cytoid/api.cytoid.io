@@ -41,6 +41,11 @@ useKoaServer(app, {
   cors: {
     // origin: conf.webURL,
     credentials: true,
+    exposeHeaders: [
+      'X-Current-Page',
+      'X-Total-Page',
+      'X-Total-Entries',
+    ],
   },
 })
 

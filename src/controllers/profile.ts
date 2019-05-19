@@ -22,6 +22,7 @@ export default class ProfileController extends BaseController {
     return {
       user,
       profile,
+      rating: await this.personalRating(user.id),
       grade: await this.gradeDistribution(user.id),
       activities: await this.userActivity(user.id),
     }
@@ -64,5 +65,22 @@ group by grade;`, [uuid])
       .where('records."ownerId"=:uuid', { uuid })
       .execute()
     return activities
+  }
+
+  public personalRating(uuid: string) {
+    return this.db.query(`
+SELECT avg(performance_rating * difficulty_rating) as rating
+FROM (select r.accuracy,
+CASE
+WHEN r.accuracy < 0.7 THEN ((|/ (r.accuracy / 0.7)) * 0.5)
+WHEN r.accuracy < 0.97 THEN 0.7 - 0.2 * log((1.0 - r.accuracy) / 0.03)
+WHEN r.accuracy < 0.997 THEN 0.7 - 0.16 * log((1.0 - r.accuracy) / 0.03)
+WHEN r.accuracy < 0.9997 THEN 0.78 - 0.08 * log((1.0 - r.accuracy) / 0.03)
+ELSE r.accuracy * 200.0 - 199.0 END as performance_rating,
+c.difficulty as difficulty_rating
+FROM records as r
+JOIN charts c ON r."chartId" = c.id
+WHERE r."ownerId"=$1) as v;`, [uuid])
+      .then((result) => result[0].rating)
   }
 }
