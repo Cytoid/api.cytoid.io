@@ -11,7 +11,7 @@ import {
   Ctx,
   InternalServerError,
   JsonController, NotFoundError, Param, Post, UseBefore,
-  ContentType, Body, HttpError,
+  ContentType, Body, HttpError, Redirect,
 } from 'routing-controllers'
 import {
   IsBoolean,
@@ -562,6 +562,22 @@ WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
         }
         throw error
       })
+  }
+
+  @Get('/:id/package')
+  @Authorized()
+  @Redirect(':assetsURL/:path')
+  public async downloadPackage(@Param('id') id: string) {
+    const path = await this.db.query(`
+UPDATE levels
+SET downloads=downloads+1
+WHERE uid=$1
+RETURNING "packagePath"`, [id])
+      .then((a) => a[0].packagePath)
+    return {
+      path,
+      assetsURL: conf.assetsURL,
+    }
   }
 }
 
