@@ -101,6 +101,7 @@ export default class LevelController extends BaseController {
         if (!level.published) {
           throw new ForbiddenError('unpublished')
         }
+        level.charts.sort((a, b) => a.difficulty - b.difficulty)
         return result
       })
   }
