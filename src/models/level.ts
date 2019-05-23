@@ -119,6 +119,9 @@ export class Chart {
 
   @ManyToOne(() => Level, (level) => level.charts, { onDelete: 'CASCADE', nullable: true })
   public level?: Level
+
+  @Column({ nullable: false })
+  public notesCount: number
 }
 
 @Entity ('level_ratings')

@@ -380,14 +380,15 @@ FROM ratings`,
         if (error.response && error.response.data) {
           throw new BadRequestError(error.response.data.message || 'Unknown Error')
         }
-        console.log(error)
         throw new InternalServerError('Errors in package analytics services')
       })
-    console.log('func returned...')
     const packageMeta: PackageMeta.IMeta = leveldata.metadata
 
     // Convert packageMeta into database models
     const level = new Level()
+    level.description = ''
+    level.published = false
+    level.tags = []
 
     if (!packageMeta.id) { throw new BadRequestError("The 'id' field is required in level.json") }
     level.uid = packageMeta.id
@@ -398,6 +399,7 @@ FROM ratings`,
       title: packageMeta.title,
       title_localized: packageMeta.title_localized,
     }
+    level.duration = leveldata.duration
 
     // TODO: Optimizations
     if (packageMeta.artist) { level.metadata.artist = {
@@ -436,6 +438,7 @@ FROM ratings`,
       entity.type = chart.type
       entity.name = chart.name
       entity.level = level
+      entity.notesCount = chart.notesCount
       return entity
     })
 
@@ -593,6 +596,7 @@ namespace PackageMeta {
     type: string
     name?: string
     difficulty: number
+    notesCount: number
   }
 
   export interface IResource {

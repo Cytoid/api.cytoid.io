@@ -9,6 +9,7 @@ export interface IAppConfiguration extends IConfig {
   postgres: ConnectionOptions
   redis: ClientOpts
   secret: string
+  jwtSecret: string
   apiURL: string
   assetsURL: string
   webURL: string

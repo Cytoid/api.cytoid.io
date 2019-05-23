@@ -56,6 +56,7 @@ CREATE TABLE "charts" (
   "difficulty" smallint NOT NULL,
   "type"       varchar  NOT NULL,
   "levelId"    integer REFERENCES "levels" ("id") ON DELETE CASCADE,
+  "notesCount" integer NOT NULL,
   CONSTRAINT "LEVEL_CHART_TYPE_UNIQUE" UNIQUE ("levelId", "type")
 );
 CREATE TABLE "level_ratings" (

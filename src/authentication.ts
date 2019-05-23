@@ -3,18 +3,18 @@ import {Middleware} from 'koa'
 import * as passport from 'koa-passport'
 import {ExtractJwt, Strategy as JwtStrategy} from 'passport-jwt'
 import {Strategy as LocalStrategy} from 'passport-local'
-import {Action} from "routing-controllers"
+import {Action} from 'routing-controllers'
 import {getManager} from 'typeorm'
 import {PasswordValidity} from 'unihash'
-import PasswordManager from './utils/password'
 import User, {IUser} from './models/user'
+import conf from './conf'
 
 const db = getManager()
 const JWTOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: 'secret',
+  secretOrKey: conf.jwtSecret,
   issuer: 'cytoid.io',
-  audience: 'cytoid.io'
+  audience: 'cytoid.io',
 }
 passport.use(
   new JwtStrategy(JWTOptions, async (jwt_payload, done) => {
