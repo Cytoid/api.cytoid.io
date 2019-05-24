@@ -1,8 +1,8 @@
 import {Get, JsonController, NotFoundError, Param} from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {level} from 'winston'
+import conf from '../conf'
 import Profile from '../models/profile'
-import Record from '../models/record'
 import User from '../models/user'
 import BaseController from './base'
 
@@ -63,21 +63,29 @@ group by grade;`, [uuid])
   }
 
   public userActivity(uuid: string) {
-    const activities: any = this.db.createQueryBuilder()
+    return this.db.createQueryBuilder()
       .select([
         'count(records) as total_ranked_plays',
         'sum(chart."notesCount") as cleared_notes',
         "max((records.details -> 'maxCombo')::integer) as max_combo",
         'avg(records.accuracy) as average_ranked_accuracy',
         'sum(records.score) as total_ranked_score',
+        'sum(level.duration) as total_play_time',
       ])
       .from('records', 'records')
       .innerJoin('charts', 'chart', 'records."chartId" = chart.id')
+      .innerJoin('levels', 'level', 'level.id=chart."levelId"')
       .where('records."ownerId"=:uuid', { uuid })
       .execute()
-    activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
-    activities.cleared_notes = parseInt(activities.cleared_notes, 10)
-    activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
+      .then((results) => {
+        const activities = results[0]
+        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
+        activities.cleared_notes = parseInt(activities.cleared_notes, 10)
+        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
+        activities.total_ranked_score = parseInt(activities.total_ranked_score, 10)
+        return activities
+      })
+
   }
 
   public personalRating(uuid: string) {
@@ -122,8 +130,8 @@ FROM scores, chart_scores;`, [uuid])
         const basicExp = result[0].basic_exp
         const levelExp = result[0].level_exp
         const totalExp = basicExp + levelExp
-        const currentLevel = 1 / 30 * (Math.sqrt(6 * totalExp + 400) + 20) + 1
-        const nextLevelExp = 150 * (currentLevel * currentLevel) - 200 * currentLevel
+        const currentLevel = Math.floor(1 / 30 * (Math.sqrt(6 * totalExp + 400) + 20) + 1)
+        const nextLevelExp = Math.round(150 * (currentLevel * currentLevel) - 200 * currentLevel)
         return {
           basicExp,
           levelExp,
@@ -153,5 +161,10 @@ join files on files.type='bundle' and files.path=levels."bundlePath"
 order by ranking.date desc
 limit 10;
 `, [uuid])
+      .then((results) => results.map((result: any) => {
+        result.backgroundURL = conf.assetsURL + '/' + result.background_path
+        delete result.background_path
+        return result
+      }))
   }
 }
