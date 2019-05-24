@@ -2,6 +2,7 @@ import {Get, JsonController, NotFoundError, Param} from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {level} from 'winston'
 import Profile from '../models/profile'
+import Record from '../models/record'
 import User from '../models/user'
 import BaseController from './base'
 
@@ -29,7 +30,10 @@ export default class ProfileController extends BaseController {
       rating: await this.personalRating(user.id),
       grade: await this.gradeDistribution(user.id),
       activities: await this.userActivity(user.id),
-      exp: await this.exp(user.id)
+      exp: await this.exp(user.id),
+      recents: {
+        ranks: await this.recentRanks(user.id),
+      },
     }
   }
 
@@ -128,5 +132,26 @@ FROM scores, chart_scores;`, [uuid])
           nextLevelExp,
         }
       })
+  }
+
+  public recentRanks(uuid: string) {
+    return this.db.query(`
+select ranking.score, ranking.accuracy, ranking.rank, ranking.date,
+   charts.difficulty, charts.type, charts."notesCount", charts.name as chart_name,
+   levels.uid, levels.title, concat(files.path, '/', (files.content->>'background')) as background_path
+from (select r.*, rank() over (partition by r."chartId" order by r.score desc)
+      from records r
+      where r.ranked = true) ranking
+         join (select max(r.score) as max_score, r."chartId"
+               from records r
+               where r."ownerId" = $1
+               group by r."chartId") max_scores
+              on max_scores."chartId" = ranking."chartId" and max_scores.max_score = ranking.score
+join charts on charts.id=ranking."chartId"
+join levels on charts."levelId" = levels.id
+join files on files.type='bundle' and files.path=levels."bundlePath"
+order by ranking.date desc
+limit 10;
+`, [uuid])
   }
 }
