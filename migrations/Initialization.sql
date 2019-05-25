@@ -6,6 +6,7 @@ CREATE TABLE "emails" (
 CREATE TABLE "files" (
   "path"         varchar   NOT NULL PRIMARY KEY,
   "type"         varchar   NOT NULL,
+  "size"         integer,
   "content"      jsonb,
   "date_created" TIMESTAMP NOT NULL DEFAULT now(),
   "ownerId"      uuid,

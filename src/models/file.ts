@@ -25,6 +25,9 @@ export default class File {
   @Column()
   public type: string
 
+  @Column()
+  public size: number
+
   @Column('jsonb', { nullable: true, comment: 'null for standalone files' })
   public content?: IDirectory
 

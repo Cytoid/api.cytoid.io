@@ -79,16 +79,23 @@ export default class LevelController extends BaseController {
   public getLevel(@Param('id') id: string, @CurrentUser() user?: IUser) {
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
-      relations: ['bundle', 'charts', 'owner'],
-    }).then((levels) => {
+      relations: ['bundle', 'charts', 'owner', 'package'],
+    })
+      .then((levels) => {
         if (levels.length === 0) {
           return undefined
         }
         const level = levels[0]
+
+        level.charts.sort((a, b) => a.difficulty - b.difficulty)
+
         const result: any = level
         result.bundle = level.bundle.toPlain()
-        result.package = result.packageId
+
+        result.packageSize = result.package.size
+        delete result.package
         delete result.packagePath
+        delete result.metadata.raw
 
         if (user && (user.id === level.ownerId)) {
           return result
@@ -101,7 +108,6 @@ export default class LevelController extends BaseController {
         if (!level.published) {
           throw new ForbiddenError('unpublished')
         }
-        level.charts.sort((a, b) => a.difficulty - b.difficulty)
         return result
       })
   }
@@ -398,6 +404,7 @@ FROM ratings`,
     level.metadata = {
       title: packageMeta.title,
       title_localized: packageMeta.title_localized,
+      raw: packageMeta,
     }
     level.duration = leveldata.duration
 
@@ -445,7 +452,7 @@ FROM ratings`,
     return this.db.transaction(async (tr) => {
       const qb = tr.createQueryBuilder()
       await qb.update(File)
-        .set({created: true})
+        .set({created: true, size: leveldata.size})
         .where('path = :path', {path: sessionData.path})
         .execute()
       await tr.save(level.bundle)

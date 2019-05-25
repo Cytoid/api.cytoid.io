@@ -25,6 +25,7 @@ export namespace LevelMeta {
     illustrator?: ISource
     charter?: ISource
     storyboarder?: ISource
+    raw: any
   }
 }
 
