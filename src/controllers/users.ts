@@ -1,21 +1,23 @@
 import {
-  IsDateString,
   IsEmail, IsOptional, IsString,
-  MinLength, validate,
+  MinLength, Validator,
 } from 'class-validator'
 import {
-  Authorized, Body,
+  Authorized, BadRequestError, Body, BodyParam,
   CurrentUser, ForbiddenError,
   Get,
   JsonController, Param,
-  Post,
+  Post, Put, UnauthorizedError,
+  HttpCode,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
-import User, {Email, IUser} from '../models/user'
-import Profile from '../models/profile'
-import BaseController from './base'
 import eventEmitter from '../events'
+import Profile from '../models/profile'
+import User, {Email, IUser} from '../models/user'
+import BaseController from './base'
+
+const validator = new Validator()
 
 class NewUserDto {
   @IsString()
@@ -48,7 +50,7 @@ export default class UserController extends BaseController {
   public getUser(@Param('id') id: string): Promise<User|string> {
     return this.repo.findOne({
       where: [
-        {uid: id},
+        validator.isUUID(id, '5') ? { id } : { uid: id },
       ],
     })
   }
@@ -88,5 +90,94 @@ export default class UserController extends BaseController {
           token: await signJWT(user.serialize()),
         }
       })
+  }
+
+  @Get('/:id/emails')
+  @Authorized()
+  public getUserEmails(@Param('id') id: string, @CurrentUser() user: IUser) {
+    if (user.id !== id) {
+      throw new UnauthorizedError()
+    }
+    return this.db.createQueryBuilder(Email, 'emails')
+      .select(['emails.address as address', 'emails.verified as verified', '(emails.address=owner.email) as primary'])
+      .where('owner.id=:id', { id })
+      .innerJoin('users', 'owner', 'owner.id=emails."ownerId"')
+      .getRawMany()
+  }
+
+  @Post('/:id/emails')
+  @HttpCode(201)
+  @Authorized()
+  public addUserEmail(
+    @Param('id') id: string,
+    @CurrentUser() user: IUser,
+    @BodyParam('email', {required: true}) email: string,
+    @BodyParam('primary') primary: boolean = false,
+  ) {
+    if (!validator.isEmail(email)) {
+      throw new BadRequestError('email not valid')
+    }
+    if (user.id !== id) {
+      throw new UnauthorizedError()
+    }
+    return this.db.createQueryBuilder(Email, 'emails')
+      .insert()
+      .values({
+        address: email,
+        verified: false,
+        ownerId: user.id,
+      })
+      .execute()
+      .catch((error) => {
+        if (error.constraint === 'emails_pkey') {
+          throw new BadRequestError('duplicated email address')
+        }
+        throw error
+      })
+      .then(async () => {
+        if (primary) {
+          await this.db.createQueryBuilder(User, 'users')
+            .update()
+            .set({ email })
+            .where('users.id=:id', {id})
+            .execute()
+        }
+      })
+      .then(() => this.getUserEmails(id, user))
+  }
+
+  @Put('/:id/emails')
+  @Authorized()
+  @HttpCode(202)
+  public replacePrimaryEmail(@Param('id') id: string, @BodyParam('email') email: string, @CurrentUser() user: IUser) {
+    if (user.id !== id) {
+      throw new UnauthorizedError()
+    }
+    if (!validator.isEmail(email)) {
+      throw new BadRequestError('email not valid')
+    }
+    if (user.email === email) {
+      return Promise.resolve(null)
+    }
+    return this.db.transaction(async (transaction) => {
+      await transaction.createQueryBuilder(Email, 'emails')
+        .delete()
+        .where(
+          'emails.address=(SELECT email FROM users WHERE users.id=:id) AND emails."ownerId" = :id',
+          { id },
+        )
+        .execute()
+      await transaction.createQueryBuilder(Email, 'emails')
+        .insert()
+        .values({ address: email, verified: false, ownerId: id})
+        .onConflict('DO NOTHING')
+        .execute()
+      await transaction.createQueryBuilder(User, 'users')
+        .update()
+        .set({ email })
+        .where({ id })
+        .execute()
+      return null
+    })
   }
 }

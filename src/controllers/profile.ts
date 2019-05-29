@@ -4,7 +4,10 @@ import {level} from 'winston'
 import conf from '../conf'
 import Profile from '../models/profile'
 import User from '../models/user'
+import { Validator } from 'class-validator'
 import BaseController from './base'
+
+const validator = new Validator()
 
 @JsonController('/profile')
 export default class ProfileController extends BaseController {
@@ -13,9 +16,8 @@ export default class ProfileController extends BaseController {
   @Get('/:id')
   public async getProfile(@Param('id') id: string) {
     // Testign if the id is a uuid. Case insensitive.
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
     const user = await this.userRepo.findOne({
-      where: isUUID ? {id} : {uid: id},
+      where: validator.isUUID(id, '5') ? {id} : {uid: id},
     })
     if (!user) {
       throw new NotFoundError()
