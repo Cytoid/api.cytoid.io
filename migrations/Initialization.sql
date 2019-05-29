@@ -14,14 +14,13 @@ CREATE TABLE "files" (
 );
 CREATE TABLE "users" (
   "id"                uuid      PRIMARY KEY DEFAULT uuid_generate_v4(),
-  "uid"               varchar,
+  "uid"               varchar   UNIQUE,
   "name"              varchar,
   "password"          bytea,
-  "email"             varchar   REFERENCES "emails" ("address") ON DELETE SET NULL,
+  "email"             varchar   UNIQUE REFERENCES "emails" ("address") ON DELETE SET NULL,
   "avatarPath"        varchar   REFERENCES "files"  ("path") ON DELETE SET NULL,
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
-  "active"            boolean   NOT NULL             DEFAULT true,
-  CONSTRAINT "USER_UID_UNIQUE" UNIQUE ("uid")
+  "active"            boolean   NOT NULL             DEFAULT true
 );
 ALTER TABLE "emails" ADD CONSTRAINT "EMAIL_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
 ALTER TABLE "files" ADD CONSTRAINT "FILE_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
@@ -35,7 +34,7 @@ CREATE TABLE "profiles" (
 CREATE TABLE "levels" (
   "id"            SERIAL         NOT NULL PRIMARY KEY,
   "version"       integer        NOT NULL,
-  "uid"           varchar        NOT NULL,
+  "uid"           varchar        NOT NULL UNIQUE,
   "title"         varchar        NOT NULL,
   "metadata"      jsonb          NOT NULL,
   "duration"      real           NOT NULL,
@@ -49,7 +48,6 @@ CREATE TABLE "levels" (
   "packagePath"   varchar REFERENCES "files" ("path") ON DELETE SET NULL,
   "bundlePath"    varchar REFERENCES "files" ("path") ON DELETE SET NULL,
   "downloads"     integer        NOT NULL DEFAULT 0,
-  CONSTRAINT "LEVEL_UID_UNIQUE" UNIQUE ("uid")
 );
 CREATE TABLE "charts" (
   "id"         SERIAL   NOT NULL PRIMARY KEY,
@@ -58,15 +56,15 @@ CREATE TABLE "charts" (
   "type"       varchar  NOT NULL,
   "levelId"    integer REFERENCES "levels" ("id") ON DELETE CASCADE,
   "notesCount" integer NOT NULL,
-  CONSTRAINT "LEVEL_CHART_TYPE_UNIQUE" UNIQUE ("levelId", "type")
+  UNIQUE ("levelId", "type")
 );
 CREATE TABLE "level_ratings" (
   "id"      SERIAL   NOT NULL PRIMARY KEY,
   "rating"  smallint NOT NULL,
   "levelId" integer  NOT NULL REFERENCES "levels" ("id") ON DELETE CASCADE,
   "userId"  uuid     NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE,
-  CONSTRAINT "LEVEL_RATING_UNIQUE" UNIQUE ("levelId", "userId"),
-  CONSTRAINT "LEVEL_RATING_RANGE" CHECK (((rating <= 10) AND (rating >= 0)))
+  UNIQUE ("levelId", "userId"),
+  CHECK (((rating <= 10) AND (rating >= 0)))
 );
 CREATE TABLE "records" (
   "id"       SERIAL         NOT NULL PRIMARY KEY,

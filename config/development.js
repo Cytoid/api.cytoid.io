@@ -12,7 +12,17 @@ module.exports = {
   assetsURL: 'https://assets.cytoid.io',
   webURL: 'http://localhost:8080',
   functionURL: 'http://localhost:5000',
-  emailTemplates: {
-    passwordReset: 'password-reset'
-  },
+  gravatarURL: 'https://www.gravatar.com/avatar',
+  email: {
+    secretKey: 'sendgrid secret',
+    sender: {
+      email: 'mailbot@example.com',
+      name: 'mailbot'
+    },
+    replyTo: {
+      email: 'admin@example.com',
+      name: 'admin'
+    },
+    templates: {}
+  }
 }

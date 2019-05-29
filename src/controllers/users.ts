@@ -69,11 +69,8 @@ export default class UserController extends BaseController {
       await transaction.insert(Profile, {
         id: user.id,
       })
-      await transaction.update(User, {
-        where: { id: user.id },
-      }, {
-        email: newUser.email,
-      })
+      await transaction.update(User, {id: user.id }, { email: newUser.email })
+      user.email = newUser.email
       return user
     })
       .catch((error) => {
@@ -85,7 +82,7 @@ export default class UserController extends BaseController {
         throw error
       })
       .then(async (user) => {
-        eventEmitter.emit('user_new')
+        eventEmitter.emit('user_new', user)
         return {
           user,
           token: await signJWT(user.serialize()),

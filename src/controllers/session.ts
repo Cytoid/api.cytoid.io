@@ -63,7 +63,7 @@ export default class UserController extends BaseController {
     }
     const code = await CodeVerifier.generate(email)
 
-    return MailClient.sendWithRemoteTemplate(config.emailTemplates.passwordReset, user, {
+    return MailClient.sendWithRemoteTemplate('password-reset', user, {
       url: config.apiURL + '/session/reset/' + code,
     })
       .then(() => {

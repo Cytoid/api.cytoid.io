@@ -16,12 +16,13 @@ export interface IAppConfiguration extends IConfig {
   functionURL: string
   gravatarURL: string
 
-  emailSecretKey: string
-
-  emailSender: IEmailClient
-  emailReplyTo?: IEmailClient
-  emailTemplates: {
-    passwordReset: string,
+  email: {
+    secretKey: string,
+    sender: IEmailClient,
+    replyTo: IEmailClient,
+    templates: {
+      [key: string]: string,
+    },
   }
 }
 

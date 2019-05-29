@@ -15,19 +15,21 @@ export class Sendgrid implements ITransport {
   public static client: AxiosInstance = axios.create({
     baseURL: 'https://api.sendgrid.com/v3',
     headers: {
-      Authorization: 'Bearer ' + config.emailSecretKey,
+      Authorization: 'Bearer ' + config.email.secretKey,
     },
   })
 
   public sender: IClient
   public replyTo?: IClient
 
-  constructor(sender: IClient = config.emailSender, replyTo: IClient = config.emailReplyTo) {
+  constructor(sender: IClient = config.email.sender, replyTo: IClient = config.email.replyTo) {
     this.sender = sender
     this.replyTo = replyTo
   }
 
   public sendWithRemoteTemplate(templateID: string, target: IClient, data: any): Promise<AxiosResponse> {
+    data.email = target.email
+    data.name = target.name
     const postData: any = {
       personalizations: [
         {
@@ -36,7 +38,7 @@ export class Sendgrid implements ITransport {
         },
       ],
       from: this.sender,
-      template_id: templateID,
+      template_id: config.email.templates[templateID],
     }
     if (this.replyTo) {
       postData.reply_to = this.replyTo
@@ -49,16 +51,18 @@ export class DebugTransport implements ITransport {
   public sender: IClient
   public replyTo?: IClient
 
-  constructor(sender: IClient = config.emailSender, replyTo: IClient = config.emailReplyTo) {
+  constructor(sender: IClient = config.email.sender, replyTo: IClient = config.email.replyTo) {
     this.sender = sender
     this.replyTo = replyTo
   }
 
   public sendWithRemoteTemplate(templateID: string, target: IClient, data: any): Promise<void> {
-    console.log('Sent email', data)
+    console.log('Sent template email', config.email.templates[templateID], target, data)
     return Promise.resolve()
   }
 }
 
-const client = new DebugTransport()
+const ClientClass = process.env.NODE_ENV === 'production' ? Sendgrid : DebugTransport
+
+const client: ITransport = new ClientClass()
 export default client
