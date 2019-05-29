@@ -15,8 +15,9 @@ import {signJWT} from '../authentication'
 import User, {Email, IUser} from '../models/user'
 import Profile from '../models/profile'
 import BaseController from './base'
+import eventEmitter from '../events'
 
-class NewUser {
+class NewUserDto {
   @IsString()
   @IsOptional()
   public name?: string
@@ -53,7 +54,7 @@ export default class UserController extends BaseController {
   }
 
   @Post('/')
-  public createUser(@Body() newUser: NewUser) {
+  public createUser(@Body() newUser: NewUserDto) {
     return this.db.transaction(async (transaction) => {
       let user = new User()
       user.name = newUser.name
@@ -84,6 +85,7 @@ export default class UserController extends BaseController {
         throw error
       })
       .then(async (user) => {
+        eventEmitter.emit('user_new')
         return {
           user,
           token: await signJWT(user.serialize()),

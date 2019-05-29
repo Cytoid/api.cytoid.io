@@ -84,21 +84,6 @@ export default class User implements IUser {
       uid: this.uid,
     }
   }
-
-  get mailClient(): IMailTransport | null {
-    if (!this.email) {
-      return null
-    }
-    const mailClient = new MailTransport()
-    mailClient.recipient = {
-      email: this.email,
-      name: this.name,
-    }
-    mailClient.sharedData = {
-      name: this.name,
-    }
-    return mailClient
-  }
 }
 
 @Entity('emails')

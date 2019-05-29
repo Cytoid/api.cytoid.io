@@ -2,23 +2,25 @@ import {Context} from 'koa'
 import { authenticate } from 'koa-passport'
 import {
   Authorized,
+  Body,
   BodyParam,
   Ctx,
   CurrentUser,
   Delete,
   Get,
   HttpCode,
-  InternalServerError,
-  JsonController, NotFoundError, Post,
+  InternalServerError, JsonController, NotFoundError,
   Param,
-  UseBefore, Body,
+  Post, UseBefore,
 } from 'routing-controllers'
 import {signJWT} from '../authentication'
 import config from '../conf'
 import User, { IUser } from '../models/user'
+import MailClient from '../utils/mail'
 import PasswordManager from '../utils/password'
-import BaseController from './base'
 import {VerificationCodeManager} from '../utils/verification_code'
+import BaseController from './base'
+import eventEmitter from '../events'
 
 const CodeVerifier = new VerificationCodeManager('password_reset')
 
@@ -60,7 +62,8 @@ export default class UserController extends BaseController {
       throw new NotFoundError('The specified email was not found')
     }
     const code = await CodeVerifier.generate(email)
-    return user.mailClient.sendWithRemoteTemplate(config.emailTemplates.passwordReset, {
+
+    return MailClient.sendWithRemoteTemplate(config.emailTemplates.passwordReset, user, {
       url: config.apiURL + '/session/reset/' + code,
     })
       .then(() => {
@@ -96,6 +99,7 @@ export default class UserController extends BaseController {
       .set({ password: hashedPassword })
       .where('email = :email', { email })
       .execute()
+    eventEmitter.emit('password_change')
     return true
   }
 }
