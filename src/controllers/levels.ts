@@ -155,48 +155,53 @@ export default class LevelController extends BaseController {
       .groupBy('levels.id, bundle.path, owner.id')
       .limit(pageLimit)
       .offset(pageLimit * pageNum)
-    let theChartsQb: SelectQueryBuilder<any> = null
-    function chartsQb() {
-      if (!theChartsQb) {
-        theChartsQb = query.subQuery()
-          .select('*')
-          .from('charts', 'charts')
-          .where('charts."levelId"=levels.id')
-      }
-      return theChartsQb
-    }
-    // Type filter. There exist a chart with designated type
-    if (ctx.request.query.type && ['easy', 'hard', 'extreme'].includes(ctx.request.query.type)) {
-      theChartsQb = chartsQb().andWhere('charts.type=:type', { type: ctx.request.query.type })
-    }
-
-    // Difficulty filter. There exist a chart satisfying the designated difficulty constraint
-    if (ctx.request.query.difficulty) {
-      const notation = ctx.request.query.difficulty
-      const rangeRegex = /(\d+)..(\d+)/
-      const thresholdRegex = /(\d+)([+-])/
-      if (parseInt(notation, 10)) {
-        theChartsQb = chartsQb().andWhere('charts.difficulty=:diff', {diff: parseInt(notation, 10)})
-      } else if (thresholdRegex.test(notation)) {
-        const [numstr, operator] = thresholdRegex.exec(notation)
-        const num = parseInt(numstr, 10)
-        if (operator === '+') {
-          theChartsQb = chartsQb().andWhere('charts.difficulty>=:num', { num })
-        } else if (operator === '-') {
-          theChartsQb = chartsQb().andWhere('charts.difficulty<=:num', { num })
+    {
+      let theChartsQb: SelectQueryBuilder<any> = null
+      function chartsQb() {
+        if (!theChartsQb) {
+          theChartsQb = query.subQuery()
+            .select('*')
+            .from('charts', 'charts')
+            .where('charts."levelId"=levels.id')
         }
-      } else if (rangeRegex.test(notation)) {
-        const [lowerStr, upperStr] = rangeRegex.exec(notation)
-        const lower = parseInt(lowerStr, 10)
-        const upper = parseInt(upperStr, 10)
-        theChartsQb = chartsQb().andWhere('charts.difficulty BETWEEN :lower AND :upper', { lower, upper })
+        return theChartsQb
+      }
+      // Type filter. There exist a chart with designated type
+      if (ctx.request.query.type && ['easy', 'hard', 'extreme'].includes(ctx.request.query.type)) {
+        theChartsQb = chartsQb().andWhere('charts.type=:type', { type: ctx.request.query.type })
+      }
+
+      // Difficulty filter. There exist a chart satisfying the designated difficulty constraint
+      if (ctx.request.query.max_difficulty) {
+        theChartsQb = chartsQb().andWhere(
+          'charts.difficulty <= :difficulty',
+          { difficulty: ctx.request.query.max_difficulty})
+      }
+      if (ctx.request.query.min_difficulty) {
+        theChartsQb = chartsQb().andWhere(
+          'charts.difficulty >= :difficulty',
+          { difficulty: ctx.request.query.min_difficulty })
+      }
+      if (theChartsQb) {
+        query = query.andWhere(`EXISTS${theChartsQb.getQuery()}`, theChartsQb.getParameters())
       }
     }
-    if (theChartsQb) {
-      query = query.andWhere(`EXISTS${theChartsQb.getQuery()}`, theChartsQb.getParameters())
+    if (ctx.request.query.date_start) {
+      query = query.andWhere('levels.date_created >= :date', {date: ctx.request.query.date_start})
     }
-    if (ctx.request.query.featured === 'true') {
+    if (ctx.request.query.date_end) {
+      query = query.andWhere('levels.date_created <= :date', {date: ctx.request.query.date_end})
+    }
+    if ('featured' in ctx.request.query) {
       query = query.andWhere("(levels.metadata->'featured')::boolean=true")
+    }
+    if ('tags' in ctx.request.query) {
+      query = query.addSelect('levels.tags')
+      if (ctx.request.query.tags) {
+        const tags = ctx.request.query.tags.split('|')
+        query = query
+          .andWhere('levels.tags@>:tags', { tags })
+      }
     }
     if (ctx.request.query.uploader) {
       query = query.andWhere('owner.uid=:uid', { uid: ctx.request.query.uploader })
