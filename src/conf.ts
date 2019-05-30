@@ -23,7 +23,8 @@ export interface IAppConfiguration extends IConfig {
     templates: {
       [key: string]: string,
     },
-  }
+  },
+  captchaKey: string,
 }
 
 const conf: IAppConfiguration = require('config')

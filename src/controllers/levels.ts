@@ -24,16 +24,17 @@ import {Type} from 'class-transformer'
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 import {Context} from 'koa'
 
-import BaseController from './base'
 import {resolve as resolveURL} from 'url'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
+import CaptchaMiddleware from '../middlewares/captcha'
 import File from '../models/file'
 import {Chart, ILevelBundle, Level, Rating} from '../models/level'
-import { IUser } from '../models/user'
 import Record, {RecordDetails} from '../models/record'
+import { IUser } from '../models/user'
 import Storage from '../storage'
+import BaseController from './base'
 
 class NewRecord {
 
@@ -333,6 +334,7 @@ FROM ratings`,
    */
   @Post('/packages')
   @Authorized()
+  @UseBefore(CaptchaMiddleware('upload-level'))
   public async createPackage(@BodyParam('key') key: string, @CurrentUser() user: IUser) {
     if (!key) { return this.signPackageUploadURL(user) } else { return this.unpackPackage(key, user) }
   }

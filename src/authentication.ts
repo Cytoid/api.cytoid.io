@@ -6,8 +6,8 @@ import {Strategy as LocalStrategy} from 'passport-local'
 import {Action} from 'routing-controllers'
 import {getManager} from 'typeorm'
 import {PasswordValidity} from 'unihash'
-import User, {IUser} from './models/user'
 import conf from './conf'
+import User, {IUser} from './models/user'
 
 const db = getManager()
 const JWTOptions = {

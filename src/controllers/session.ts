@@ -15,12 +15,13 @@ import {
 } from 'routing-controllers'
 import {signJWT} from '../authentication'
 import config from '../conf'
+import eventEmitter from '../events'
+import CaptchaMiddleware from '../middlewares/captcha'
 import User, { IUser } from '../models/user'
 import MailClient from '../utils/mail'
 import PasswordManager from '../utils/password'
 import {VerificationCodeManager} from '../utils/verification_code'
 import BaseController from './base'
-import eventEmitter from '../events'
 
 const CodeVerifier = new VerificationCodeManager('password_reset')
 
@@ -28,6 +29,7 @@ const CodeVerifier = new VerificationCodeManager('password_reset')
 export default class UserController extends BaseController {
   @Post('/')
   @UseBefore(authenticate('local'))
+  @UseBefore(CaptchaMiddleware('login'))
   public async login(@CurrentUser() user: User) {
     const token = await signJWT(user.serialize())
     return {
@@ -52,6 +54,7 @@ export default class UserController extends BaseController {
 
   @HttpCode(202)
   @Post('/reset')
+  @UseBefore(CaptchaMiddleware('reset-password'))
   public async resetPasswordStart(@BodyParam('email') email: string) {
     const user = await this.db.findOne(User, {
       where: [

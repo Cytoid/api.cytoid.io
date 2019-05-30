@@ -8,7 +8,7 @@ import {
   Get,
   JsonController, Param,
   Post, Put, UnauthorizedError,
-  HttpCode,
+  HttpCode, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
@@ -16,6 +16,7 @@ import eventEmitter from '../events'
 import Profile from '../models/profile'
 import User, {Email, IUser} from '../models/user'
 import BaseController from './base'
+import CaptchaMiddleware from '../middlewares/captcha'
 
 const validator = new Validator()
 
@@ -56,6 +57,7 @@ export default class UserController extends BaseController {
   }
 
   @Post('/')
+  @UseBefore(CaptchaMiddleware('signup'))
   public createUser(@Body() newUser: NewUserDto) {
     return this.db.transaction(async (transaction) => {
       let user = new User()
