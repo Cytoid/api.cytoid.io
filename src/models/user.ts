@@ -19,6 +19,7 @@ export interface IUser {
   uid?: string
   name: string
   email?: string
+  avatarURL?: string
 }
 
 @Entity('users')
@@ -82,6 +83,7 @@ export default class User implements IUser {
       id: this.id,
       name: this.name,
       uid: this.uid,
+      avatarURL: this.avatarURL,
     }
   }
 }

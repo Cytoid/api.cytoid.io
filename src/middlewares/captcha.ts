@@ -8,7 +8,9 @@ export default function createCaptchaValidator(action: string) {
   function use(context: Context, next: (err?: any) => Promise<any>): Promise<any> {
     const token = context.request.body.token
     if (!token) {
-      throw new BadRequestError('captcha token required')
+      context.response.body = 'Captcha token required!'
+      context.response.status = 400
+      return Promise.resolve()
     }
     return axios({
       url: 'https://www.google.com/recaptcha/api/siteverify',
