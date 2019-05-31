@@ -36,6 +36,7 @@ export function signJWT(payload: any): Promise<string> {
 
 passport.use(
   new LocalStrategy(async (username, password, done) => {
+    username = username.toLowerCase()
     const user = await db.findOne(User, {
       where: [
         {uid: username},
@@ -46,8 +47,8 @@ passport.use(
     const passwordVerified = await user.checkPassword(password)
     if (passwordVerified === PasswordValidity.Invalid) { return done(null, false) }
     if (passwordVerified === PasswordValidity.ValidOutdated) {
-      await user.setPassword(password)
-      await db.save(user, {transaction: false})
+      user.setPassword(password)
+        .then(() => db.save(user, {transaction: false}))
     }
     return done(null, user)
   }),

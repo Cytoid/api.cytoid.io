@@ -2,7 +2,6 @@ import {Context} from 'koa'
 import { authenticate } from 'koa-passport'
 import {
   Authorized,
-  Body,
   BodyParam,
   Ctx,
   CurrentUser,
@@ -17,7 +16,7 @@ import {signJWT} from '../authentication'
 import config from '../conf'
 import eventEmitter from '../events'
 import CaptchaMiddleware from '../middlewares/captcha'
-import User, { IUser } from '../models/user'
+import User, {IUser} from '../models/user'
 import MailClient from '../utils/mail'
 import PasswordManager from '../utils/password'
 import {VerificationCodeManager} from '../utils/verification_code'
@@ -54,20 +53,24 @@ export default class UserController extends BaseController {
 
   @HttpCode(202)
   @Post('/reset')
-  @UseBefore(CaptchaMiddleware('reset-password'))
+  @UseBefore(CaptchaMiddleware('reset_password'))
   public async resetPasswordStart(@BodyParam('email') email: string) {
-    const user = await this.db.findOne(User, {
-      where: [
-        { email },
-      ],
-    })
+    email = email.toLowerCase()
+    const user = await this.db
+      .createQueryBuilder('emails', 'emails')
+      .innerJoin('users', 'users', 'users.id=emails."ownerId"')
+      .select(['users.id', 'users.uid', 'users.name'])
+      .where('emails.address=:email', { email })
+      .andWhere('emails.verified=true')
+      .getRawOne()
     if (!user) {
-      throw new NotFoundError('The specified email was not found')
+      return
     }
+    user.email = email
     const code = await CodeVerifier.generate(email)
 
     return MailClient.sendWithRemoteTemplate('password-reset', user, {
-      url: config.apiURL + '/session/reset/' + code,
+      url: config.webURL + '/session/reset/' + code,
     })
       .then(() => {
         return null
@@ -78,18 +81,8 @@ export default class UserController extends BaseController {
   }
 
   @HttpCode(202)
-  @Get('/reset/:code')
-  public async resetPasswordVerify(@Param('code') code: string) {
-    const email = await CodeVerifier.validate(code)
-    if (!email) {
-      throw new NotFoundError('The verification code is not valid.')
-    }
-    return email
-    // TODO: Return a formatted HTML that allows the user to input the new password
-  }
-
-  @HttpCode(202)
   @Post('/reset/:code')
+  @UseBefore(CaptchaMiddleware('reset_password_continue'))
   public async resetPassword(@Param('code') code: string, @BodyParam('password') password: string) {
     const email = await CodeVerifier.makeInvalidate(code)
     if (!email) {
@@ -100,7 +93,7 @@ export default class UserController extends BaseController {
     await this.db.createQueryBuilder()
       .update(User)
       .set({ password: hashedPassword })
-      .where('email = :email', { email })
+      .where('id = (SELECT "ownerId" FROM emails WHERE emails.address=:email)', { email })
       .execute()
     eventEmitter.emit('password_change')
     return true

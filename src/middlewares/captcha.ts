@@ -8,8 +8,7 @@ export default function createCaptchaValidator(action: string) {
   function use(context: Context, next: (err?: any) => Promise<any>): Promise<any> {
     const token = context.request.body.token
     if (!token) {
-      context.response.body = 'Captcha token required!'
-      context.response.status = 400
+      context.throw(400, 'Captcha token required!')
       return Promise.resolve()
     }
     return axios({
@@ -20,32 +19,16 @@ export default function createCaptchaValidator(action: string) {
         secret: conf.captchaKey,
         // remoteip:
       },
+      // @ts-ignore
+      httpsAgent: new require('socks-proxy-agent')('socks5://localhost:1080'),
     })
       .then((res) => {
-        if (!res.data.success) {
-          context.response.body = 'captcha validation failed: '
-          if ('error-codes' in res.data) {
-            context.response.body += res.data['error-codes']
-          } else {
-            context.response.body += 'Unknown'
-          }
-          context.response.status = 500
-          return Promise.resolve()
-        } else if (res.data.action !== action) {
-          context.response.body = 'action mismatch'
-          context.response.status = 400
-          return Promise.resolve()
-        } else if (res.data.score <= 0.7) {
-          context.response.body = 'you are a robot(' + res.data.score + ')'
-          context.response.status = 400
-          return Promise.resolve()
-        } else {
-          return next()
-        }
-      })
-      .catch((error) => {
-        context.response.body = 'captcha service not available'
-        context.response.status = 500
+        context.assert(res.data.success, 500, 'captcha validation failed' + ('error-codes' in res.data) ?
+          res.data['error-codes'] :
+          'Unknown')
+        context.assert(res.data.action === action, 400, 'action mismatch')
+        context.assert(res.data.score >= 0.7, 400, 'you are a robot(' + res.data.score + ')')
+        return next()
       })
   }
   return use

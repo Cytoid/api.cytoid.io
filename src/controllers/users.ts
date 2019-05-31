@@ -59,6 +59,10 @@ export default class UserController extends BaseController {
   @Post('/')
   @UseBefore(CaptchaMiddleware('signup'))
   public createUser(@Body() newUser: NewUserDto) {
+    newUser.email = newUser.email.toLowerCase()
+    if (newUser.uid) {
+      newUser.uid = newUser.uid.toLowerCase()
+    }
     return this.db.transaction(async (transaction) => {
       let user = new User()
       user.name = newUser.name
