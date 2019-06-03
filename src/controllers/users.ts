@@ -4,19 +4,24 @@ import {
 } from 'class-validator'
 import {
   Authorized, BadRequestError, Body, BodyParam,
-  CurrentUser, ForbiddenError,
-  Get,
-  JsonController, Param,
-  Post, Put, UnauthorizedError,
-  HttpCode, UseBefore,
+  CurrentUser, Delete,
+  ForbiddenError,
+  Get, HttpCode,
+  JsonController, NotFoundError, Param,
+  Post,
+  Patch, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
+import config from '../conf'
 import eventEmitter from '../events'
+import CaptchaMiddleware from '../middlewares/captcha'
 import Profile from '../models/profile'
 import User, {Email, IUser} from '../models/user'
+import MailClient from '../utils/mail'
+import {VerificationCodeManager} from '../utils/verification_code'
 import BaseController from './base'
-import CaptchaMiddleware from '../middlewares/captcha'
+const CodeVerifier = new VerificationCodeManager('email_verification')
 
 const validator = new Validator()
 
@@ -118,7 +123,6 @@ export default class UserController extends BaseController {
     @Param('id') id: string,
     @CurrentUser() user: IUser,
     @BodyParam('email', {required: true}) email: string,
-    @BodyParam('primary') primary: boolean = false,
   ) {
     if (!validator.isEmail(email)) {
       throw new BadRequestError('email not valid')
@@ -140,50 +144,88 @@ export default class UserController extends BaseController {
         }
         throw error
       })
-      .then(async () => {
-        if (primary) {
-          await this.db.createQueryBuilder(User, 'users')
-            .update()
-            .set({ email })
-            .where('users.id=:id', {id})
-            .execute()
-        }
-      })
       .then(() => this.getUserEmails(id, user))
   }
 
-  @Put('/:id/emails')
+  @Patch('/:id/emails/:email')
   @Authorized()
-  @HttpCode(202)
-  public replacePrimaryEmail(@Param('id') id: string, @BodyParam('email') email: string, @CurrentUser() user: IUser) {
+  @HttpCode(204)
+  public setPrimaryEmail(
+    @Param('id') id: string,
+    @Param('email') email: string,
+    @BodyParam('primary') primary: boolean,
+    @CurrentUser() user: IUser) {
     if (user.id !== id) {
       throw new UnauthorizedError()
     }
-    if (!validator.isEmail(email)) {
-      throw new BadRequestError('email not valid')
+    if (primary) {
+      return this.db.query(
+        'UPDATE users SET email=$1 WHERE id=$2 AND id=(SELECT id FROM emails WHERE address=$1)',
+        [email, id])
+        .catch((error) => {
+          if (error.constraint === 'users_email_pkey') {
+            throw new NotFoundError('email not found')
+          }
+          throw error
+        })
+    } else {
+      return this.db.query('UPDATE users SET email=NULL WHERE id=$1', [id])
     }
-    if (user.email === email) {
-      return Promise.resolve(null)
+  }
+
+  @Delete('/:id/emails/:email')
+  @Authorized()
+  @HttpCode(204)
+  public deleteEmail(@CurrentUser() user: IUser, @Param('id') userId: string, @Param('email') email: string) {
+    if (userId !== user.id) {
+      throw new UnauthorizedError()
     }
-    return this.db.transaction(async (transaction) => {
-      await transaction.createQueryBuilder(Email, 'emails')
-        .delete()
-        .where(
-          'emails.address=(SELECT email FROM users WHERE users.id=:id) AND emails."ownerId" = :id',
-          { id },
-        )
-        .execute()
-      await transaction.createQueryBuilder(Email, 'emails')
-        .insert()
-        .values({ address: email, verified: false, ownerId: id})
-        .onConflict('DO NOTHING')
-        .execute()
-      await transaction.createQueryBuilder(User, 'users')
-        .update()
-        .set({ email })
-        .where({ id })
-        .execute()
-      return null
-    })
+    return this.db.createQueryBuilder()
+      .delete()
+      .from('emails')
+      .where('address=:email AND "ownerId"=:userId', { email, userId })
+      .execute()
+      .then((result) => (result.affected === 0) ? Promise.reject(new NotFoundError()) : Promise.resolve(true))
+  }
+
+  @Post('/:id/emails/:email/verify')
+  @Authorized()
+  @HttpCode(202)
+  public verifyEmail(@CurrentUser() user: IUser, @Param('id') userId: string, @Param('email') email: string) {
+    if (userId !== user.id) {
+      throw new UnauthorizedError()
+    }
+    return this.db.createQueryBuilder()
+      .select('verified', 'verified')
+      .from('emails', 'e')
+      .where('e.address=:email AND e."ownerId"=:userId', { email, userId })
+      .getRawOne()
+      .then((item) => {
+        if (!item) {
+          throw new NotFoundError()
+        }
+        if (item.verified) {
+          throw new ForbiddenError('already verified')
+        }
+        return CodeVerifier.generate(email)
+      })
+      .then((token) => {
+        MailClient.sendWithRemoteTemplate('email-confirm',
+          { name: user.name || user.uid, email },
+          { url: config.apiURL + `/users/${userId}/emails/${email}/verify/${token}`})
+        return null
+      })
+  }
+
+  @Get('/:id/emails/:email/verify/:token')
+  public async confirmEmail(@Param('id') userId: string, @Param('email') email: string, @Param('token') token: string) {
+    if (await CodeVerifier.makeInvalidate(token) !== email) {
+      return 'The token was expired.'
+    }
+    await this.db.query(
+      'UPDATE emails SET verified=true WHERE verified=false AND address=$1 AND "ownerId"=$2',
+      [email, userId])
+
+    return 'Your email was successfully confirmed!'
   }
 }

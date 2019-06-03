@@ -19,8 +19,6 @@ export default function createCaptchaValidator(action: string) {
         secret: conf.captchaKey,
         // remoteip:
       },
-      // @ts-ignore
-      httpsAgent: new require('socks-proxy-agent')('socks5://localhost:1080'),
     })
       .then((res) => {
         context.assert(res.data.success, 500, 'captcha validation failed' + ('error-codes' in res.data) ?
