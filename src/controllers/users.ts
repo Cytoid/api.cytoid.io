@@ -8,7 +8,7 @@ import {
   ForbiddenError,
   Get, HttpCode,
   JsonController, NotFoundError, Param,
-  Post,
+  Post, Put,
   Patch, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
@@ -61,10 +61,25 @@ export default class UserController extends BaseController {
     })
   }
 
+  @Put('/:id')
+  @Authorized()
+  public editUser(@Param('id') id: string, @CurrentUser() user: IUser, @Body() newUser: IUser) {
+    if (user.id !== id) {
+      throw new UnauthorizedError()
+    }
+    return this.db.createQueryBuilder()
+      .update(User)
+      .set({ uid: newUser.uid, name: newUser.name })
+      .where('id=:id', { id })
+      .execute()
+  }
+
   @Post('/')
   @UseBefore(CaptchaMiddleware('signup'))
   public createUser(@Body() newUser: NewUserDto) {
-    newUser.email = newUser.email.toLowerCase()
+    if (newUser.email) {
+      newUser.email = newUser.email.toLowerCase()
+    }
     if (newUser.uid) {
       newUser.uid = newUser.uid.toLowerCase()
     }
@@ -75,15 +90,17 @@ export default class UserController extends BaseController {
       await user.setPassword(newUser.password)
 
       user = await transaction.save(user)
-      await transaction.insert(Email, {
-        address: newUser.email,
-        ownerId: user.id,
-      })
+      if (newUser.email) {
+        await transaction.insert(Email, {
+          address: newUser.email,
+          ownerId: user.id,
+        })
+        await transaction.update(User, {id: user.id }, { email: newUser.email })
+        user.email = newUser.email
+      }
       await transaction.insert(Profile, {
         id: user.id,
       })
-      await transaction.update(User, {id: user.id }, { email: newUser.email })
-      user.email = newUser.email
       return user
     })
       .catch((error) => {
@@ -124,6 +141,7 @@ export default class UserController extends BaseController {
     @CurrentUser() user: IUser,
     @BodyParam('email', {required: true}) email: string,
   ) {
+    email = email.toLowerCase()
     if (!validator.isEmail(email)) {
       throw new BadRequestError('email not valid')
     }
@@ -158,6 +176,7 @@ export default class UserController extends BaseController {
     if (user.id !== id) {
       throw new UnauthorizedError()
     }
+    email = email.toLowerCase()
     if (primary) {
       return this.db.query(
         'UPDATE users SET email=$1 WHERE id=$2 AND id=(SELECT id FROM emails WHERE address=$1)',
@@ -180,6 +199,7 @@ export default class UserController extends BaseController {
     if (userId !== user.id) {
       throw new UnauthorizedError()
     }
+    email = email.toLowerCase()
     return this.db.createQueryBuilder()
       .delete()
       .from('emails')
@@ -195,6 +215,7 @@ export default class UserController extends BaseController {
     if (userId !== user.id) {
       throw new UnauthorizedError()
     }
+    email = email.toLowerCase()
     return this.db.createQueryBuilder()
       .select('verified', 'verified')
       .from('emails', 'e')
@@ -219,6 +240,7 @@ export default class UserController extends BaseController {
 
   @Get('/:id/emails/:email/verify/:token')
   public async confirmEmail(@Param('id') userId: string, @Param('email') email: string, @Param('token') token: string) {
+    email = email.toLowerCase()
     if (await CodeVerifier.makeInvalidate(token) !== email) {
       return 'The token was expired.'
     }

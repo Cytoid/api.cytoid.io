@@ -205,7 +205,7 @@ export default class LevelController extends BaseController {
       }
     }
     if (ctx.request.query.uploader) {
-      query = query.andWhere('owner.uid=:uid', { uid: ctx.request.query.uploader })
+      query = query.andWhere('owner.id=:id', { id: ctx.request.query.uploader })
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])
       .then(([{entities, raw}, count]) => {
