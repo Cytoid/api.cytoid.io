@@ -1,28 +1,25 @@
-import axios from 'axios'
-import {randomBytes} from 'crypto'
+import {Type} from 'class-transformer'
+import {
+  ArrayUnique,
+  IsBoolean, IsInstance, IsInt, IsNumber,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator'
+import {Context} from 'koa'
 import {
   Authorized,
   BadRequestError,
+  Body,
   BodyParam,
-  QueryParam,
+  ContentType,
+  Ctx,
   CurrentUser,
   ForbiddenError,
-  Get,
-  Ctx,
-  InternalServerError,
-  JsonController, NotFoundError, Param, Post, UseBefore,
-  ContentType, Body, HttpError, Redirect,
+  Get, HttpError, JsonController, NotFoundError, Param,
+  Post, QueryParam, Redirect, UseBefore,
 } from 'routing-controllers'
-import {
-  IsBoolean,
-  IsInt, IsNumber, Min, Max,
-  IsInstance,
-  ValidateNested,
-  ArrayUnique,
-} from 'class-validator'
-import {Type} from 'class-transformer'
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
-import {Context} from 'koa'
 
 import {resolve as resolveURL} from 'url'
 import {OptionalAuthenticate} from '../authentication'
@@ -327,159 +324,6 @@ FROM ratings`,
     return this.getRatings(id, user)
   }
 
-  /**
-   * Routing based on if the request includes the package upload key.
-   * @param key
-   * @param user
-   */
-  @Post('/packages')
-  @Authorized()
-  @UseBefore(CaptchaMiddleware('upload-level'))
-  public async createPackage(@BodyParam('key') key: string, @CurrentUser() user: IUser) {
-    if (!key) { return this.signPackageUploadURL(user) } else { return this.unpackPackage(key, user) }
-  }
-
-  /**
-   * Generate the package upload key, create the temporary file in the db,
-   * and sign the upload URL from Google Cloud Storage.
-   * @param user
-   */
-  public async signPackageUploadURL(user: IUser) {
-    const ttl = 600
-    const packageName = (await randomBytes(this.createPackageConfig.packageLen))
-      .toString('base64')
-      .replace(/\W/g, '')
-    const path = this.createPackageConfig.packagePath + packageName
-    const file = new File(path, 'package')
-    file.ownerId = user.id
-    const key = (await randomBytes(15)).toString('base64')
-
-    await this.db.save(file, {transaction: false})
-    const sessionData: ILevelCreateSessionData = {
-      pkgName: packageName,
-      path,
-      userId: user.id,
-    }
-    await redis.setexAsync(this.createPackageConfig.redisPrefix + key, ttl, JSON.stringify(sessionData))
-    return {
-      uploadURL: await Storage.getUploadURL(path, 'application/zip', ttl),
-      key,
-    }
-  }
-
-  /**
-   * Verify the upload key, unpackage and analyze the package, create the bundle directory,
-   * extract the metadata from the package, save it into the database, and return the metadata.
-   * @param key
-   * @param user
-   */
-  public async unpackPackage(key: string, user: IUser) {
-    const sessionData: ILevelCreateSessionData = JSON.parse(
-      await redis.getAsync(this.createPackageConfig.redisPrefix + key))
-    if (!sessionData) {
-      throw new NotFoundError('Access Key not exist or expired')
-    }
-    if (sessionData.userId !== user.id) {
-      throw new ForbiddenError('Must be logged in as the user who originally started the operation!')
-    }
-    const packagePath = this.createPackageConfig.packagePath + sessionData.pkgName
-    const bundlePath = this.createPackageConfig.bundlePath + sessionData.pkgName
-    const leveldata = await axios.post(this.createPackageConfig.unpkgURL, {
-      packagePath,
-      bundlePath,
-    }, {headers: {'content-type': 'application/json'}})
-      .then((res) => res.data)
-      .catch((error) => {
-        if (error.response && error.response.data) {
-          throw new BadRequestError(error.response.data.message || 'Unknown Error')
-        }
-        throw new InternalServerError('Errors in package analytics services')
-      })
-    const packageMeta: PackageMeta.IMeta = leveldata.metadata
-
-    // Convert packageMeta into database models
-    const level = new Level()
-    level.description = ''
-    level.published = false
-    level.tags = []
-
-    if (!packageMeta.id) { throw new BadRequestError("The 'id' field is required in level.json") }
-    level.uid = packageMeta.id
-    level.version = packageMeta.version || 1
-    level.title = packageMeta.title || ''
-    level.ownerId = user.id
-    level.metadata = {
-      title: packageMeta.title,
-      title_localized: packageMeta.title_localized,
-      raw: packageMeta,
-    }
-    level.duration = leveldata.duration
-
-    // TODO: Optimizations
-    if (packageMeta.artist) { level.metadata.artist = {
-      name: packageMeta.artist,
-      url: packageMeta.artist_source,
-      localized_name: packageMeta.artist_localized,
-    }
-    }
-    if (packageMeta.illustrator) { level.metadata.illustrator = {
-      name: packageMeta.illustrator,
-      url: packageMeta.illustrator_source,
-    }
-    }
-    if (packageMeta.charter) { level.metadata.charter = {
-      name: packageMeta.charter,
-    }
-    }
-    if (packageMeta.storyboarder) { level.metadata.storyboarder = {
-      name: packageMeta.storyboarder,
-    }
-    }
-
-    level.bundle = new File(bundlePath, 'bundle') as ILevelBundle
-    level.bundle.ownerId = user.id
-    level.bundle.created = true
-    level.bundle.content = {
-      music: packageMeta.music && packageMeta.music.path,
-      music_preview: packageMeta.music_preview && packageMeta.music_preview.path,
-      background: packageMeta.background && packageMeta.background.path,
-    }
-    level.packagePath = sessionData.path
-
-    const charts = packageMeta.charts.map((chart) => {
-      const entity = new Chart()
-      entity.difficulty = chart.difficulty
-      entity.type = chart.type
-      entity.name = chart.name
-      entity.level = level
-      entity.notesCount = chart.notesCount
-      return entity
-    })
-
-    return this.db.transaction(async (tr) => {
-      const qb = tr.createQueryBuilder()
-      await qb.update(File)
-        .set({created: true, size: leveldata.size})
-        .where('path = :path', {path: sessionData.path})
-        .execute()
-      await tr.save(level.bundle)
-      await tr.save(level)
-        .catch((error) => {
-          if (error.constraint === 'LEVEL_UID_UNIQUE') {
-            throw new ForbiddenError('Level UID already exists.')
-          }
-          throw error
-        })
-      await tr.save(charts)
-      return level
-    })
-      .then((result: any) => {
-        result.package = resolveURL(conf.assetsURL, packagePath)
-        result.bundle = result.bundle.toPlain()
-        return result
-      })
-  }
-
   @Get('/:id/charts/:chartType/')
   public getChart(@Param('id') id: string, @Param('chartType') chartType: string) {
     return this.db.createQueryBuilder()
@@ -596,46 +440,5 @@ RETURNING "packagePath"`, [id])
       path,
       assetsURL: conf.assetsURL,
     }
-  }
-}
-
-interface ILevelCreateSessionData {
-  pkgName: string
-  path: string
-  userId?: string
-}
-
-namespace PackageMeta {
-  export interface IChart extends IResource {
-    type: string
-    name?: string
-    difficulty: number
-    notesCount: number
-  }
-
-  export interface IResource {
-    path: string
-  }
-
-  export interface IMeta {
-    version: number
-    schema_version: number
-
-    id: string
-    title: string
-    title_localized?: string
-
-    artist: string
-    artist_localized?: string
-    artist_source?: string
-    illustrator?: string
-    illustrator_source?: string
-    charter?: string
-    storyboarder?: string
-
-    music: IResource
-    music_preview: IResource
-    background: IResource
-    charts: IChart[]
   }
 }

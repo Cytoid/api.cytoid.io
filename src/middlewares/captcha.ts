@@ -25,7 +25,7 @@ export default function createCaptchaValidator(action: string) {
           res.data['error-codes'] :
           'Unknown')
         context.assert(res.data.action === action, 400, 'action mismatch')
-        context.assert(res.data.score >= 0.7, 400, 'you are a robot(' + res.data.score + ')')
+        context.assert(res.data.score > 0.3, 400, 'you are a robot(' + res.data.score + ')')
         return next()
       })
   }
