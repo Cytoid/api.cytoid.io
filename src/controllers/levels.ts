@@ -111,7 +111,9 @@ export default class LevelController extends BaseController {
   }
 
   @Get('/')
+  @UseBefore(OptionalAuthenticate)
   public async getLevels(
+    @CurrentUser() user: IUser,
     @QueryParam('page') pageNum: number = 0,
     @QueryParam('limit') pageLimit: number = 30,
     @QueryParam('order') sortOrder: string = 'asc',
@@ -131,7 +133,6 @@ export default class LevelController extends BaseController {
       difficulty: (sortOrder === 'asc' ? 'max' : 'min') + '(charts.difficulty)',
     }
     let query = this.db.createQueryBuilder(Level, 'levels')
-      .where("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
       .leftJoin('levels.bundle', 'bundle', "bundle.type='bundle' AND bundle.created=true")
       .leftJoin('levels.owner', 'owner')
       .leftJoin('levels.charts', 'charts')
@@ -142,9 +143,6 @@ export default class LevelController extends BaseController {
         'levels.metadata',
         'bundle.content',
         'bundle.path',
-        'owner.uid',
-        'owner.email',
-        'owner.name',
         'json_agg(charts ORDER BY charts.difficulty) as charts',
         '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
       ])
@@ -203,6 +201,24 @@ export default class LevelController extends BaseController {
     }
     if (ctx.request.query.uploader) {
       query = query.andWhere('owner.id=:id', { id: ctx.request.query.uploader })
+        .addSelect([
+          'levels.downloads',
+          '(SELECT count(*) FROM records ' +
+          'JOIN charts ON charts.id=records."chartId" ' +
+          'WHERE charts."levelId"=levels.id) as plays',
+          'levels.modificationDate',
+          'levels.creationDate',
+        ])
+    } else {
+      query = query.addSelect([
+        'owner.uid',
+        'owner.email',
+        'owner.name',
+      ])
+    }
+    // Exclude the unpublished levels or censored levels unless it's the uploader querying himself
+    if (!ctx.request.query.uploader || ctx.request.query.uploader !== user.id) {
+      query = query.andWhere("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])
       .then(([{entities, raw}, count]) => {
@@ -211,9 +227,11 @@ export default class LevelController extends BaseController {
         ctx.set('X-Current-Page', pageNum.toString())
         return entities.map((level: any, index) => {
           const rawRecord = raw[index]
+          console.log(level)
           level.bundle = level.bundle.toPlain()
           level.charts = rawRecord.charts
           level.rating = parseFloat(rawRecord.rating) || null
+          level.plays = rawRecord.plays || 0
           return level
         })
       })
