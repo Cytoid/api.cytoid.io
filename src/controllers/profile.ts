@@ -36,6 +36,7 @@ export default class ProfileController extends BaseController {
       recents: {
         ranks: await this.recentRanks(user.id),
       },
+      levels: await this.levels(user.id),
     }
   }
 
@@ -167,6 +168,21 @@ limit 10;
         result.backgroundURL = conf.assetsURL + '/' + result.background_path
         delete result.background_path
         return result
+      }))
+  }
+
+  public levels(id: string) {
+    return this.db.createQueryBuilder()
+      .select([
+        'count(levels.id) filter (where (levels.metadata->\'featured\')::boolean=true) as featured_levels_count',
+        'count(levels.id) as total_levels_count',
+      ])
+      .from('levels', 'levels')
+      .where('levels."ownerId"=:id', { id })
+      .getRawOne()
+      .then((value) => ({
+        featuredLevelsCount: parseInt(value.featured_levels_count, 10),
+        totalLevelsCount: parseInt(value.total_levels_count, 10),
       }))
   }
 }

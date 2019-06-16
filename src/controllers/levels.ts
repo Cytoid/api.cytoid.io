@@ -189,7 +189,11 @@ export default class LevelController extends BaseController {
       query = query.andWhere('levels.date_created <= :date', {date: ctx.request.query.date_end})
     }
     if ('featured' in ctx.request.query) {
-      query = query.andWhere("(levels.metadata->'featured')::boolean=true")
+      if (ctx.request.query.featured === 'true') {
+        query = query.andWhere("(levels.metadata->'featured')::boolean=true")
+      } else {
+        query = query.andWhere("(levels.metadata->'featured')::boolean=false OR levels.metadata->'featured' IS NULL")
+      }
     }
     if ('tags' in ctx.request.query) {
       query = query.addSelect('levels.tags')
@@ -217,7 +221,7 @@ export default class LevelController extends BaseController {
       ])
     }
     // Exclude the unpublished levels or censored levels unless it's the uploader querying himself
-    if (!ctx.request.query.uploader || ctx.request.query.uploader !== user.id) {
+    if (!user || !ctx.request.query.uploader || ctx.request.query.uploader !== user.id) {
       query = query.andWhere("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])
@@ -227,7 +231,6 @@ export default class LevelController extends BaseController {
         ctx.set('X-Current-Page', pageNum.toString())
         return entities.map((level: any, index) => {
           const rawRecord = raw[index]
-          console.log(level)
           level.bundle = level.bundle.toPlain()
           level.charts = rawRecord.charts
           level.rating = parseFloat(rawRecord.rating) || null
