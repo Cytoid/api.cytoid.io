@@ -21,17 +21,15 @@ import {
 } from 'routing-controllers'
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 
-import {resolve as resolveURL} from 'url'
+import { Validator } from 'class-validator'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
-import CaptchaMiddleware from '../middlewares/captcha'
-import File from '../models/file'
-import {Chart, ILevelBundle, Level, Rating} from '../models/level'
+import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
 import { IUser } from '../models/user'
-import Storage from '../storage'
 import BaseController from './base'
+const validator = new Validator()
 
 class NewRecord {
 
@@ -203,8 +201,10 @@ export default class LevelController extends BaseController {
           .andWhere('levels.tags@>:tags', { tags })
       }
     }
-    if (ctx.request.query.uploader) {
-      query = query.andWhere('owner.id=:id', { id: ctx.request.query.uploader })
+    if (ctx.request.query.owner) {
+      const isUUID = validator.isUUID(ctx.request.query.owner)
+      query = query
+        .andWhere(`owner.${isUUID ? 'id' : 'uid'}=:id`, { id: ctx.request.query.owner })
         .addSelect([
           'levels.downloads',
           '(SELECT count(*) FROM records ' +
@@ -221,7 +221,7 @@ export default class LevelController extends BaseController {
       ])
     }
     // Exclude the unpublished levels or censored levels unless it's the uploader querying himself
-    if (!user || !ctx.request.query.uploader || ctx.request.query.uploader !== user.id) {
+    if (!user || !ctx.request.query.owner || ctx.request.query.owner !== user.id) {
       query = query.andWhere("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])
