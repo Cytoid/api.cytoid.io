@@ -56,7 +56,7 @@ export default class User implements IUser {
   @Expose()
   public get avatarURL(): string | null {
     if (this.avatarPath) {
-      return config.assetsURL + this.avatarPath
+      return config.assetsURL + '/' + this.avatarPath
     }
     if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
@@ -83,7 +83,6 @@ export default class User implements IUser {
       id: this.id,
       name: this.name,
       uid: this.uid,
-      avatarURL: this.avatarURL,
     }
   }
 }

@@ -1,5 +1,4 @@
-import axios from 'axios'
-import {randomBytes} from "crypto"
+import {randomBytes} from 'crypto'
 import {
   Authorized, BadRequestError,
   CurrentUser, ForbiddenError, Get, HttpCode, InternalServerError, JsonController, NotFoundError,
@@ -10,19 +9,41 @@ import {redis} from '../../db'
 import CaptchaMiddleware from '../../middlewares/captcha'
 import File from '../../models/file'
 import {IUser} from '../../models/user'
-import Storage from '../../storage'
 import BaseController from '../base'
+import AvatarHandler from './avatar'
 import LevelHandler from './levels'
+
+import {GetSignedUrlConfig, Storage as GoogleStorage} from '@google-cloud/storage'
+
+const storage = new GoogleStorage({
+  projectId: 'cytoid',
+})
+const assetBucket = storage.bucket('assets.cytoid.io')
+
+function getUploadURL(path: string, contentType: string = null, ttl: number): Promise<string>{
+  const file = assetBucket.file(path)
+  const options: GetSignedUrlConfig = {
+    action: 'write',
+    expires: Date.now() + ttl * 1000,
+  }
+  if (contentType) {
+    options.contentType = contentType
+  }
+  console.log(options)
+  return file.getSignedUrl(options)
+    .then((v) => v[0])
+}
 
 export interface IFileUploadHandler {
   uploadLinkTTL: number
   targetPath: string
-  contentType: string
+  contentType?: string
   callback?: (user: IUser, session: IFileUploadSessionData) => any
 }
 
 const FileUploadHandlers: { [key: string]: IFileUploadHandler } = {
   packages: LevelHandler,
+  avatar: AvatarHandler,
 }
 
 export interface IFileUploadSessionData {
@@ -67,7 +88,7 @@ export default class FileController extends BaseController {
     }
     await redis.setexAsync(this.getRedisKey(path), handler.uploadLinkTTL + 600, JSON.stringify(sessionData))
     return {
-      uploadURL: await Storage.getUploadURL(path, handler.contentType, handler.uploadLinkTTL),
+      uploadURL: await getUploadURL(path, handler.contentType, handler.uploadLinkTTL),
       path,
     }
   }

@@ -218,6 +218,7 @@ export default class LevelController extends BaseController {
         'owner.uid',
         'owner.email',
         'owner.name',
+        'owner.avatarPath',
       ])
     }
     // Exclude the unpublished levels or censored levels unless it's the uploader querying himself
