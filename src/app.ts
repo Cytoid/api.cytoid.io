@@ -40,6 +40,7 @@ useKoaServer(app, {
   currentUserChecker,
   cors: {
     // origin: conf.webURL,
+    maxAge: 604800 * 365,
     credentials: true,
     exposeHeaders: [
       'X-Current-Page',

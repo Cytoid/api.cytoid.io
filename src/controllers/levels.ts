@@ -221,8 +221,12 @@ export default class LevelController extends BaseController {
       ])
     }
     // Exclude the unpublished levels or censored levels unless it's the uploader querying himself
-    if (!user || !ctx.request.query.owner || ctx.request.query.owner !== user.id) {
+    if (!user ||
+      !ctx.request.query.owner ||
+      (ctx.request.query.owner !== user.uid && ctx.request.query.owner !== user.id)) {
       query = query.andWhere("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
+    } else {
+      query = query.addSelect('levels.published')
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])
       .then(([{entities, raw}, count]) => {

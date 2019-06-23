@@ -21,7 +21,7 @@ export default function createCaptchaValidator(action: string) {
       },
     })
       .then((res) => {
-        context.assert(res.data.success, 500, 'captcha validation failed' + ('error-codes' in res.data) ?
+        context.assert(res.data.success, 403, 'captcha validation failed' + ('error-codes' in res.data) ?
           res.data['error-codes'] :
           'Unknown')
         context.assert(res.data.action === action, 400, 'action mismatch')

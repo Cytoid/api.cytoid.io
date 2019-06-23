@@ -52,8 +52,13 @@ export class Level {
   @Column('text')
   public description: string
 
-  @Column({ default: false })
-  public published: boolean
+  /*
+    True: Public
+    False: Unlisted
+    Null: private
+   */
+  @Column({ default: false, nullable: true })
+  public published?: boolean
 
   @Column('varchar',  {nullable: true})
   public censored?: string

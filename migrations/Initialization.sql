@@ -39,7 +39,7 @@ CREATE TABLE "levels" (
   "metadata"      jsonb          NOT NULL,
   "duration"      real           NOT NULL,
   "description"   text           NOT NULL,
-  "published"     boolean        NOT NULL DEFAULT false,
+  "published"     boolean        DEFAULT false,
   "censored"      varchar,
   "tags"          varchar[]      NOT NULL,
   "date_created"  TIMESTAMP      NOT NULL DEFAULT now(),
