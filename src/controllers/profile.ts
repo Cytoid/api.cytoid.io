@@ -1,4 +1,4 @@
-import {Get, JsonController, NotFoundError, Param} from 'routing-controllers'
+import {Get, JsonController, NotFoundError, Param, QueryParam} from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {level} from 'winston'
 import conf from '../conf'
@@ -14,17 +14,22 @@ export default class ProfileController extends BaseController {
   private userRepo = getRepository(User)
   private profileRepo = getRepository(Profile)
   @Get('/:id')
-  public async getProfile(@Param('id') id: string) {
-    // Testign if the id is a uuid. Case insensitive.
+  public async getProfile(@Param('id') id: string, @QueryParam('stats') stats: boolean = false) {
+    // Testing if the id is a uuid. Case insensitive.
     const user = await this.userRepo.findOne({
-      where: validator.isUUID(id, '5') ? {id} : {uid: id},
+      where: validator.isUUID(id, '4') ? {id} : {uid: id},
     })
     if (!user) {
       throw new NotFoundError()
     }
-    const profile = await this.profileRepo.findOne({
+    const profile: any = await this.profileRepo.findOne({
       where: {id: user.id},
     })
+    profile.headerURL = conf.assetsURL + '/' + profile.headerPath
+    delete profile.headerPath
+    if (!stats) {
+      return profile
+    }
     delete profile.id
     return {
       user,

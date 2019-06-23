@@ -12,6 +12,7 @@ import {IUser} from '../../models/user'
 import BaseController from '../base'
 import AvatarHandler from './avatar'
 import LevelHandler from './levels'
+import HeaderHandler from './headers'
 
 import {GetSignedUrlConfig, Storage as GoogleStorage} from '@google-cloud/storage'
 
@@ -29,7 +30,6 @@ function getUploadURL(path: string, contentType: string = null, ttl: number): Pr
   if (contentType) {
     options.contentType = contentType
   }
-  console.log(options)
   return file.getSignedUrl(options)
     .then((v) => v[0])
 }
@@ -44,6 +44,7 @@ export interface IFileUploadHandler {
 const FileUploadHandlers: { [key: string]: IFileUploadHandler } = {
   packages: LevelHandler,
   avatar: AvatarHandler,
+  headers: HeaderHandler,
 }
 
 export interface IFileUploadSessionData {

@@ -20,6 +20,9 @@ export default class Profile {
   public header: File
 
   @Column()
+  public headerPath: string
+
+  @Column()
   public bio: string
 
   @Column('varchar', { array: true })
