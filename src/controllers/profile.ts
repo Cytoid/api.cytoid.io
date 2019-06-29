@@ -1,13 +1,26 @@
-import {Get, JsonController, NotFoundError, Param, QueryParam} from 'routing-controllers'
+import { IsDateString, IsOptional, IsString, Validator } from 'class-validator'
+import {
+  Authorized, Body,
+  CurrentUser, Get, JsonController,
+  NotFoundError, Param, Put, QueryParam, UnauthorizedError,
+} from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {level} from 'winston'
 import conf from '../conf'
 import Profile from '../models/profile'
-import User from '../models/user'
-import { Validator } from 'class-validator'
+import User, {IUser} from '../models/user'
 import BaseController from './base'
 
 const validator = new Validator()
+
+class ProfileUpdateDTO {
+  @IsDateString()
+  @IsOptional()
+  public birthday: string
+
+  @IsString()
+  public bio: string
+}
 
 @JsonController('/profile')
 export default class ProfileController extends BaseController {
@@ -189,5 +202,20 @@ limit 10;
         featuredLevelsCount: parseInt(value.featured_levels_count, 10),
         totalLevelsCount: parseInt(value.total_levels_count, 10),
       }))
+  }
+
+  @Put('/:id')
+  @Authorized()
+  public async updateProfile(
+    @Param('id') id: string,
+    @Body() profile: ProfileUpdateDTO,
+    @CurrentUser() user: IUser,
+  ): Promise<null> {
+    const isUUID = validator.isUUID(id, '4')
+    if (isUUID ? (id !== user.id) : (id !== user.uid)) {
+      throw new UnauthorizedError()
+    }
+    await this.profileRepo.update({ id: user.id }, profile)
+    return null
   }
 }

@@ -73,6 +73,20 @@ export default class UserController extends BaseController {
     })
   }
 
+  @Delete('/:id/avatar')
+  @Authorized()
+  public async deleteAvatar(@Param('id') id: string, @CurrentUser() user: IUser): Promise<null> {
+    const isUUID = validator.isUUID(id, '4')
+    if (isUUID ? (id !== user.id) : (id !== user.uid)) {
+      throw new UnauthorizedError()
+    }
+    await this.repo.update(
+      validator.isUUID(id, '4') ? { id } : { uid: id },
+      { avatarPath: null },
+    )
+    return null
+  }
+
   @Put('/:id')
   @Authorized()
   public editUser(@Param('id') id: string, @CurrentUser() user: IUser, @Body() newUser: IUser) {
