@@ -77,3 +77,12 @@ CREATE TABLE "records" (
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
 );
+
+CREATE MATERIALIZED VIEW tags_search AS
+    SELECT tag,
+           count(tag),
+           to_tsvector(tag) as tsv
+    FROM (SELECT lower(unnest(tags)) AS tag FROM levels) AS tags
+    GROUP BY tag ORDER BY count DESC;
+
+CREATE INDEX tsv_indexx ON tags_search USING gin(tsv);

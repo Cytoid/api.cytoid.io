@@ -14,6 +14,7 @@ class init1551561379955 {
     await queryRunner.dropTable('levels');
     await queryRunner.dropTable('files');
     await queryRunner.dropTable('users');
+    await queryRunner.query('DROP MATERIALIZED VIEW tags_search')
   }
 
 }
