@@ -18,6 +18,7 @@ import {
   ForbiddenError,
   Get, HttpError, JsonController, NotFoundError, Param,
   Post, QueryParam, Redirect, UseBefore,
+  Patch,
 } from 'routing-controllers'
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 
@@ -106,6 +107,26 @@ export default class LevelController extends BaseController {
         }
         return result
       })
+  }
+
+  @Patch('/:id')
+  @Authorized()
+  public async editLevel(
+    @Param('id') id: string,
+    @CurrentUser() user: IUser,
+    @Body() level: Level): Promise<null> {
+    const existingLevel = await this.levelRepo.findOne({ uid: id }, {
+      select: ['ownerId'] ,
+    })
+    if (existingLevel.ownerId !== user.id) {
+      throw new ForbiddenError('User does not own the level!')
+    }
+    delete level.censored
+    delete level.uid
+    delete level.id
+    delete level.ownerId
+    await this.levelRepo.update({ uid: id }, level)
+    return null
   }
 
   @Get('/')
