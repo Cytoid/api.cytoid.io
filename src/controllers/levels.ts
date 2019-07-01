@@ -442,7 +442,7 @@ LEFT JOIN users on users.id = record."ownerId"
 WITH leaderboard as (${this.queryLeaderboard()})
 SELECT *
 FROM leaderboard
-WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) < 2`,
+WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) <= 3`,
       [id, chartType, user.id])
     .then((result) => result.map(this.formatLeaderboardQueryResult))
   }
