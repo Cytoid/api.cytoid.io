@@ -108,6 +108,15 @@ export default class LevelController extends BaseController {
         return result
       })
   }
+  @Get('/:id/legacy')
+  public getLevelMetaLegacy(@Param('id') id: string) {
+    return this.db.createQueryBuilder()
+      .select(["levels.metadata->'raw' as raw"])
+      .from('levels', 'levels')
+      .where('levels.uid=:id', { id })
+      .getRawOne()
+      .then((a) => a.raw)
+  }
 
   @Patch('/:id')
   @Authorized()
