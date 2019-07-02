@@ -11,6 +11,7 @@ export default class Leaderboard extends BaseController{
       .select(['lb.rating', 'lb.ranking', 'lb.ownerId'])
       .from(LeaderboardEntry, 'lb')
       .leftJoinAndSelect('lb.owner', 'owner')
+      .orderBy('lb.ranking')
       .getMany()
   }
 }

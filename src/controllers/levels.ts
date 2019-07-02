@@ -73,7 +73,10 @@ export default class LevelController extends BaseController {
 
   @Get('/:id')
   @UseBefore(OptionalAuthenticate)
-  public getLevel(@Param('id') id: string, @CurrentUser() user?: IUser) {
+  public getLevel(
+    @Ctx() ctx: Context,
+    @Param('id') id: string,
+    @CurrentUser() user?: IUser) {
     return this.levelRepo.find({  // Use 'find' instead of 'findOne' to avoid duplicated queries
       where: {uid: id},
       relations: ['bundle', 'charts', 'owner', 'package'],
@@ -95,8 +98,11 @@ export default class LevelController extends BaseController {
         delete result.metadata.raw
 
         if (user && (user.id === level.ownerId)) {
-          return result
-        } // If the user was the owner, return the result without all the checks.
+          ctx.set('Cache-Control', 'private')
+          return result // If the user was the owner, return the result without all the checks.
+        } else {
+          ctx.set('Cache-Control', 'public, max-age=600')
+        }
 
         if (level.censored !== null && level.censored !== 'ccp') {
           throw new HttpError(451, 'censored:' + level.censored)
@@ -146,6 +152,7 @@ export default class LevelController extends BaseController {
     @QueryParam('limit') pageLimit: number = 30,
     @QueryParam('order') sortOrder: string = 'asc',
     @Ctx() ctx: Context) {
+    const theSortOrder: 'DESC' | 'ASC' = (sortOrder.toUpperCase() === 'DESC') ? 'DESC' : 'ASC'
     if (pageLimit > 30) {
       pageLimit = 30
     }
@@ -174,11 +181,17 @@ export default class LevelController extends BaseController {
         'json_agg(charts ORDER BY charts.difficulty) as charts',
         '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
       ])
-      .orderBy(keyMap[ctx.request.query.sort] || 'levels.date_created',
-        (sortOrder.toLowerCase() === 'desc') ? 'DESC' : 'ASC')
       .groupBy('levels.id, bundle.path, owner.id')
       .limit(pageLimit)
       .offset(pageLimit * pageNum)
+
+    if (ctx.request.query.sort && keyMap[ctx.request.query.sort]) {
+      query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder)
+        .addOrderBy('levels.date_created', 'DESC')
+    } else {
+      query = query.orderBy('levels.date_created', theSortOrder)
+    }
+
     {
       let theChartsQb: SelectQueryBuilder<any> = null
       function chartsQb() {
@@ -255,8 +268,12 @@ export default class LevelController extends BaseController {
     if (!user ||
       !ctx.request.query.owner ||
       (ctx.request.query.owner !== user.uid && ctx.request.query.owner !== user.id)) {
+      // Querying publicly available data
       query = query.andWhere("levels.published=true AND (levels.censored IS NULL OR levels.censored='ccp')")
+      ctx.set('Cache-Control', 'public, max-age=60')
     } else {
+      // Querying user-specific data
+      ctx.set('Cache-Control', 'private')
       query = query.addSelect('levels.published')
     }
     return Promise.all([query.getRawAndEntities(), query.getCount()])

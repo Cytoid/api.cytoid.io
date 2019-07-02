@@ -87,25 +87,29 @@ CREATE MATERIALIZED VIEW tags_search AS
 
 CREATE INDEX tsv_indexx ON tags_search USING gin(tsv);
 
-CREATE VIEW leaderboard AS (
-    WITH lb AS (
+CREATE VIEW records_ratings AS (
+    SELECT r.id, r.date,
+           r.accuracy,
+           r."ownerId"                             AS "ownerId",
+           CASE
+               WHEN r.accuracy < 0.7 THEN ((|/ (r.accuracy / 0.7)) * 0.5)
+               WHEN r.accuracy < 0.97 THEN 0.7 - 0.2 * log((1.0 - r.accuracy) / 0.03)
+               WHEN r.accuracy < 0.997 THEN 0.7 - 0.16 * log((1.0 - r.accuracy) / 0.03)
+               WHEN r.accuracy < 0.9997 THEN 0.78 - 0.08 * log((1.0 - r.accuracy) / 0.03)
+               ELSE r.accuracy * 200.0 - 199.0 END AS performance_rating,
+           c.difficulty                            AS difficulty_rating
+    FROM records r
+    JOIN charts c ON r."chartId"=c.id
+);
+
+
+CREATE MATERIALIZED VIEW leaderboard AS (
+    SELECT *, rank() OVER (ORDER BY rating DESC) AS ranking
+    FROM (
         SELECT avg(performance_rating * difficulty_rating) AS rating,
                "ownerId"
-        FROM (
-                 SELECT r.accuracy,
-                        r."ownerId"                             AS "ownerId",
-                        CASE
-                            WHEN r.accuracy < 0.7 THEN ((|/ (r.accuracy / 0.7)) * 0.5)
-                            WHEN r.accuracy < 0.97 THEN 0.7 - 0.2 * log((1.0 - r.accuracy) / 0.03)
-                            WHEN r.accuracy < 0.997 THEN 0.7 - 0.16 * log((1.0 - r.accuracy) / 0.03)
-                            WHEN r.accuracy < 0.9997 THEN 0.78 - 0.08 * log((1.0 - r.accuracy) / 0.03)
-                            ELSE r.accuracy * 200.0 - 199.0 END AS performance_rating,
-                        c.difficulty                            AS difficulty_rating
-                 FROM records AS r
-                          JOIN charts c ON r."chartId" = c.id
-             ) AS record_ratings
+        FROM records_ratings
         GROUP BY "ownerId"
-    )
-    SELECT *, rank() OVER (ORDER BY rating DESC) AS ranking
-    FROM lb
-)
+    ) as lb
+);
+

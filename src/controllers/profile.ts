@@ -55,6 +55,7 @@ export default class ProfileController extends BaseController {
         ranks: await this.recentRanks(user.id),
       },
       levels: await this.levels(user.id),
+      timeseries: await this.timeseries(user.id),
     }
   }
 
@@ -110,19 +111,10 @@ group by grade;`, [uuid])
   }
 
   public personalRating(uuid: string) {
-    return this.db.query(`
-SELECT avg(performance_rating * difficulty_rating) as rating
-FROM (select r.accuracy,
-CASE
-WHEN r.accuracy < 0.7 THEN ((|/ (r.accuracy / 0.7)) * 0.5)
-WHEN r.accuracy < 0.97 THEN 0.7 - 0.2 * log((1.0 - r.accuracy) / 0.03)
-WHEN r.accuracy < 0.997 THEN 0.7 - 0.16 * log((1.0 - r.accuracy) / 0.03)
-WHEN r.accuracy < 0.9997 THEN 0.78 - 0.08 * log((1.0 - r.accuracy) / 0.03)
-ELSE r.accuracy * 200.0 - 199.0 END as performance_rating,
-c.difficulty as difficulty_rating
-FROM records as r
-JOIN charts c ON r."chartId" = c.id
-WHERE r."ownerId"=$1) as v;`, [uuid])
+    return this.db.query(`\
+SELECT avg(r.performance_rating * r.difficulty_rating) as rating
+FROM records_ratings r
+WHERE r."ownerId"=$1;`, [uuid])
       .then((result) => result[0].rating)
   }
 
@@ -151,14 +143,17 @@ FROM scores, chart_scores;`, [uuid])
         const basicExp = result[0].basic_exp
         const levelExp = result[0].level_exp
         const totalExp = basicExp + levelExp
-        const currentLevel = Math.floor((Math.sqrt(6 * totalExp + 400) + 20) / 30 - 1 / 3)
-        const nextLevelExp = Math.round(150 * (currentLevel * currentLevel) - 200 * currentLevel)
+        const currentLevel = Math.floor((Math.sqrt(6 * totalExp + 400) + 10) / 30)
+        function levelToExp(levelNum: number) {
+          return Math.round(50 * ((1 / 3) * Math.pow(3 * levelNum - 1, 2) - (4 / 3)))
+        }
         return {
           basicExp,
           levelExp,
           totalExp,
           currentLevel,
-          nextLevelExp,
+          nextLevelExp: levelToExp(currentLevel + 1),
+          currentLevelExp: levelToExp(currentLevel),
         }
       })
   }
@@ -202,6 +197,25 @@ limit 10;
         featuredLevelsCount: parseInt(value.featured_levels_count, 10),
         totalLevelsCount: parseInt(value.total_levels_count, 10),
       }))
+  }
+
+  public timeseries(uuid: string) {
+    return this.db.query(`\
+SELECT (sum(t.rating * t.count) OVER w) / (sum(t.count) OVER w) as historic_rating,
+       (sum(t.accuracy * t.count) OVER w) / (sum(t.count) OVER w) as historic_avg,
+       t.*
+FROM (
+         SELECT extract('week' from r.date) as week,
+                extract('year' from r.date) as year,
+                avg(performance_rating * difficulty_rating) as rating,
+                avg(accuracy) as accuracy,
+                count(*)
+         FROM records_ratings r
+         WHERE r."ownerId" = (SELECT id FROM users WHERE uid = 'tigerhix')
+         GROUP BY year, week
+         ORDER BY year, week
+     ) as t
+     WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`)
   }
 
   @Put('/:id')
