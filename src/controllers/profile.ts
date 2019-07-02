@@ -151,7 +151,7 @@ FROM scores, chart_scores;`, [uuid])
         const basicExp = result[0].basic_exp
         const levelExp = result[0].level_exp
         const totalExp = basicExp + levelExp
-        const currentLevel = Math.floor(1 / 30 * (Math.sqrt(6 * totalExp + 400) + 20) + 1)
+        const currentLevel = Math.floor((Math.sqrt(6 * totalExp + 400) + 20) / 30 - 1 / 3)
         const nextLevelExp = Math.round(150 * (currentLevel * currentLevel) - 200 * currentLevel)
         return {
           basicExp,

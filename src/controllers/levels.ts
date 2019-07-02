@@ -390,6 +390,9 @@ FROM ratings`,
       .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
       .getRawOne()
       .then((a) => {
+        if (!a) {
+          return null
+        }
         a.level = id
         a.type = chartType
         return a
