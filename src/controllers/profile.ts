@@ -201,21 +201,21 @@ limit 10;
 
   public timeseries(uuid: string) {
     return this.db.query(`\
-SELECT (sum(t.rating * t.count) OVER w) / (sum(t.count) OVER w) as historic_rating,
-       (sum(t.accuracy * t.count) OVER w) / (sum(t.count) OVER w) as historic_avg,
+SELECT (sum(t.rating * t.count) OVER w) / (sum(t.count) OVER w) as accu_rating,
+       (sum(t.accuracy * t.count) OVER w) / (sum(t.count) OVER w) as accu_accuracy,
        t.*
 FROM (
          SELECT extract('week' from r.date) as week,
-                extract('year' from r.date) as year,
+                extract('isoyear' from r.date) as year,
                 avg(performance_rating * difficulty_rating) as rating,
                 avg(accuracy) as accuracy,
-                count(*)
+                count(*)::integer
          FROM records_ratings r
-         WHERE r."ownerId" = (SELECT id FROM users WHERE uid = 'tigerhix')
+         WHERE r."ownerId" = $1
          GROUP BY year, week
          ORDER BY year, week
      ) as t
-     WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`)
+     WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`, [ uuid ])
   }
 
   @Put('/:id')
