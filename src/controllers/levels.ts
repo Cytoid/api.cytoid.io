@@ -23,12 +23,13 @@ import {
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 
 import { Validator } from 'class-validator'
+import {level} from 'winston'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
-import { IUser } from '../models/user'
+import User, { IUser } from '../models/user'
 import BaseController from './base'
 const validator = new Validator()
 
@@ -416,55 +417,93 @@ FROM ratings`,
       })
   }
 
-  private queryLeaderboard(chartId?: number) {
-    return `
-SELECT record.*,
-       users.uid as "user/uid", users.name as "user/name",
-       users.email as "user/email",
-       rank() OVER (ORDER BY score DESC, date ASC)
-FROM (SELECT DISTINCT ON ("ownerId") *
-      FROM records
-      WHERE "chartId" = ${
-      chartId ?
-        '$1' :
-        '(SELECT id FROM charts WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1) AND type = $2)'
-      }
-      ORDER BY "ownerId", score DESC, date ASC) record
-LEFT JOIN users on users.id = record."ownerId"
-`
-  }
-  private formatLeaderboardQueryResult(result: any) {
-    result.owner = {
-      uid: result['user/uid'],
-      name: result['user/name'],
-      email: result['user/email'],
-      id: result.ownerId,
-    }
-    delete result['user/uid']
-    delete result['user/name']
-    delete result['user/email']
-    delete result.ownerId
-    result.rank = parseInt(result.rank, 10)
-    return result
-  }
+  private queryLeaderboard(levelUid: string, chartType: string) {
+    const mainQuery: SelectQueryBuilder<Record> = this.db
+    .createQueryBuilder()
+    .select([
+      'u.name',
+      'u.uid',
+      'u.email',
+      'u.avatarPath',
+      'u.id',
+      'r.id',
+      'r.date',
+      'r.score',
+      'r.accuracy',
+      'r.details',
+      'r.mods',
+      'rank() OVER (ORDER BY score DESC, date ASC)',
+    ])
+      .from((qb: SelectQueryBuilder<Record>) => qb
+        .select('DISTINCT ON ("ownerId") *')
+        .from(Record, 'record')
+        .where(
+          '"chartId"=' +
+          '(SELECT id FROM charts WHERE "levelId"=(SELECT id FROM levels WHERE uid=:uid) AND type=:type)',
+          { uid: levelUid, type: chartType },
+        )
+        .andWhere('ranked=true')
+        .orderBy('"ownerId"')
+        .addOrderBy('score', 'DESC')
+        .addOrderBy('date', 'ASC'), 'r')
 
+    // Adding metadata for our 'from' subquery
+    // The metadata of the subquery is undetermined so we have to add it manually
+    const subqueryAlias = mainQuery.expressionMap.findAliasByName('r')
+    subqueryAlias.metadata = mainQuery.connection.getMetadata(Record)
+
+    return mainQuery.leftJoin('r.owner', 'u')
+  }
   @Get('/:id/charts/:chartType/ranking')
-  public getChartRanking(@Param('id') id: string, @Param('chartType') chartType: string) {
-    return this.db.query(this.queryLeaderboard(), [id, chartType])
-      .then((result) => result.map(this.formatLeaderboardQueryResult))
+  public async getChartRanking(
+    @Ctx() ctx: Context,
+    @Param('id') id: string,
+    @Param('chartType') chartType: string,
+    @QueryParam('limit') limit: number = 10,
+    @QueryParam('page') page: number = 0,
+    @QueryParam('user') user?: string) {
+    let qb = this.queryLeaderboard(id, chartType)
+    if (user) {
+      const isUUID = validator.isUUID(user, '4')
+      const rankQuery = `SELECT rank FROM lb WHERE u_id=${isUUID ? ':user' : '(SELECT id FROM users WHERE uid=:user)'}`
+      // Hack the original getQuery to insert the WITH clause
+      // This is all because TypeORM does not support .with clause
+      // See https://github.com/typeorm/typeorm/issues/1116
+      const orgQuery = qb.getQuery
+      const orgParams = qb.getParameters
+      qb.getQuery = () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= 3`
+      qb.getParameters = () => {
+        const a = orgParams.call(qb)
+        a.user = user
+        return a
+      }
+    } else {
+      if (limit > 30) {
+        limit = 30
+      }
+      qb = qb
+        .limit(limit)
+        .offset(limit * page)
 
-  }
-
-  @Get('/:id/charts/:chartType/ranking/my')
-  @Authorized()
-  public getMyChartRanking(@Param('id') id: string, @Param('chartType') chartType: string, @CurrentUser() user: IUser) {
-    return this.db.query(`
-WITH leaderboard as (${this.queryLeaderboard()})
-SELECT *
-FROM leaderboard
-WHERE abs(rank - (SELECT rank FROM leaderboard WHERE "ownerId" = $3)) <= 3`,
-      [id, chartType, user.id])
-    .then((result) => result.map(this.formatLeaderboardQueryResult))
+      const count = await this.db.createQueryBuilder(Record, 'r')
+        .select('count(DISTINCT r."ownerId")')
+        .where(
+          '"chartId"=' +
+          '(SELECT id FROM charts WHERE "levelId"=(SELECT id FROM levels WHERE uid=:uid) AND type=:type)',
+          { uid: id, type: chartType },
+        )
+        .andWhere('ranked=true')
+        .getRawOne()
+        .then((a) => a.count)
+      ctx.set('X-Total-Page', Math.floor(count / limit).toString())
+      ctx.set('X-Total-Entries', count.toString())
+      ctx.set('X-Current-Page', page.toString())
+    }
+    const { entities, raw } = await qb.getRawAndEntities()
+    entities.forEach((record, index) => {
+      (record as any).rank = raw[index].rank
+    })
+    return entities
   }
 
   @Post('/:id/charts/:chartType/records')
