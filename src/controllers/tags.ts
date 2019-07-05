@@ -17,4 +17,19 @@ export default class TagsController extends BaseController{
 
     return searchQuery.then((result) => result.map((a: any) => a.tag))
   }
+  @Get('/full')
+  public searchFullText(@QueryParam('search') searchKey: string, @QueryParam('limit') limit: number = 10) {
+    if (limit > 30) {
+      limit = 30
+    }
+    if (searchKey === '') {
+      return Promise.resolve([])
+    }
+    return this.db.query(`\
+SELECT title, uid
+FROM to_tsquery(coalesce(nullif(plainto_tsquery($1)::text, ''), $1) || ':*') query, levels_search
+WHERE query @@ tsv
+ORDER BY ts_rank_cd(tsv, query) DESC
+LIMIT $2;`, [searchKey, limit])
+  }
 }

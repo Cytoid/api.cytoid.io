@@ -23,7 +23,6 @@ import {
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 
 import { Validator } from 'class-validator'
-import {level} from 'winston'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
@@ -189,7 +188,7 @@ export default class LevelController extends BaseController {
     if (ctx.request.query.sort && keyMap[ctx.request.query.sort]) {
       query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder)
         .addOrderBy('levels.date_created', 'DESC')
-    } else {
+    } else if (!ctx.request.query.search) {
       query = query.orderBy('levels.date_created', theSortOrder)
     }
 
@@ -244,6 +243,18 @@ export default class LevelController extends BaseController {
         query = query
           .andWhere('levels.tags@>:tags', { tags })
       }
+    }
+    if (ctx.request.query.search) {
+      query = query.innerJoin( (qb) => ({
+          getQuery: () => (
+            '(SELECT s.id FROM websearch_to_tsquery(:keyword) query, levels_search s ' +
+            'WHERE query @@ tsv ORDER BY ts_rank_cd(tsv, query))'
+          ),
+          getParameters: () => ({ keyword: ctx.request.query.search }),
+        }),
+        'search',
+        'search.id=levels.id',
+      )
     }
     if (ctx.request.query.owner) {
       const isUUID = validator.isUUID(ctx.request.query.owner)
