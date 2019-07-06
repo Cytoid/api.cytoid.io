@@ -1,3 +1,6 @@
-rm secrets.tar
-tar cvf secrets.tar config/production.js deploy-secret.json
-travis encrypt-file secrets.tar --com
+gcloud kms encrypt \
+  --plaintext-file=./config/production.js \
+  --ciphertext-file=./config/production.js.enc \
+  --location=global \
+  --keyring=CytoidIO \
+  --key=SecretKey

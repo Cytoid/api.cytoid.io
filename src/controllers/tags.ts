@@ -2,7 +2,7 @@ import {Get, JsonController, QueryParam} from 'routing-controllers'
 import BaseController from './base'
 
 @JsonController('/tags')
-export default class TagsController extends BaseController{
+export default class TagsController extends BaseController {
   @Get('/')
   public searchTag(@QueryParam('search') searchKey: string, @QueryParam('limit') limit: number = 10) {
     if (limit > 30) {

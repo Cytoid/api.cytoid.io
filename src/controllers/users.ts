@@ -8,8 +8,8 @@ import {
   ForbiddenError,
   Get, HttpCode,
   JsonController, NotFoundError, Param,
-  Post, Put,
-  Patch, UnauthorizedError, UseBefore, Redirect,
+  Patch, Post,
+  Put, Redirect, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'

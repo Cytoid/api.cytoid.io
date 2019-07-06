@@ -1,0 +1,17 @@
+steps:
+- name: "gcr.io/cloud-builders/gcloud"
+  args:
+  - "kms"
+  - "decrypt"
+  - "--ciphertext-file=./config/production.js.enc"
+  - "--plaintext-file=./config/production.js"
+  - "--location=global"
+  - "--keyring=CytoidIO"
+  - "--key=SecretKey"
+- name: "gcr.io/cloud-builders/yarn"
+  args: ['install']
+- name: "gcr.io/cloud-builders/yarn"
+  args: ['build']
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['app', 'deploy']
+timeout: '1600s'

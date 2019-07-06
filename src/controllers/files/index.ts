@@ -11,8 +11,8 @@ import File from '../../models/file'
 import {IUser} from '../../models/user'
 import BaseController from '../base'
 import AvatarHandler from './avatar'
-import LevelHandler from './levels'
 import HeaderHandler from './headers'
+import LevelHandler from './levels'
 
 import {GetSignedUrlConfig, Storage as GoogleStorage} from '@google-cloud/storage'
 
@@ -21,7 +21,7 @@ const storage = new GoogleStorage({
 })
 const assetBucket = storage.bucket('assets.cytoid.io')
 
-function getUploadURL(path: string, contentType: string = null, ttl: number): Promise<string>{
+function getUploadURL(path: string, contentType: string = null, ttl: number): Promise<string> {
   const file = assetBucket.file(path)
   const options: GetSignedUrlConfig = {
     action: 'write',
@@ -56,9 +56,6 @@ export interface IFileUploadSessionData {
 
 @JsonController('/files')
 export default class FileController extends BaseController {
-  private getRedisKey(path: string) {
-    return 'files:upload:' + path
-  }
 
   /**
    * Generate the package upload key, create the temporary file in the db,
@@ -124,5 +121,8 @@ export default class FileController extends BaseController {
     if (handler.callback) {
       return handler.callback(user, sessionData)
     }
+  }
+  private getRedisKey(path: string) {
+    return 'files:upload:' + path
   }
 }

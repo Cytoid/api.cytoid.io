@@ -1,6 +1,6 @@
 import { IConfig } from 'config'
-import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions'
 import { ClientOpts } from 'redis'
+import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions'
 import { IClient as IEmailClient } from './utils/mail'
 
 export interface IAppConfiguration extends IConfig {

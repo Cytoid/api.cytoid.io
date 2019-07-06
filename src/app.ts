@@ -1,9 +1,9 @@
 import 'reflect-metadata' // this shim is required
 import { useKoaServer } from 'routing-controllers'
 
-import logger from './logger'
 import conf from './conf'
 import './db'
+import logger from './logger'
 
 import * as controllers from './controllers'
 import * as middlewares from './middlewares'

@@ -1,4 +1,5 @@
 import { Exclude, Expose, Type } from 'class-transformer'
+import { createHash } from 'crypto'
 import {
   Column,
   CreateDateColumn,
@@ -7,12 +8,11 @@ import {
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm'
-import { createHash } from 'crypto'
 import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
 
+import config from '../conf'
 import PasswordManager from '../utils/password'
 import File from './file'
-import config from '../conf'
 
 export interface IUser {
   id: string

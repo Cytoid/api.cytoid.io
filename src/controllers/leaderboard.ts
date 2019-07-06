@@ -4,7 +4,7 @@ import User from '../models/user'
 import BaseController from './base'
 
 @JsonController('/leaderboard')
-export default class Leaderboard extends BaseController{
+export default class Leaderboard extends BaseController {
   @Get('/')
   public leaderboard() {
     return this.db.createQueryBuilder()

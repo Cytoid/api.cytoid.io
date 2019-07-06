@@ -1,33 +1,33 @@
-import {Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn} from 'typeorm'
-import {IsInt, Min} from 'class-validator'
 import {Exclude} from 'class-transformer'
+import {IsInt, Min} from 'class-validator'
+import {Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn} from 'typeorm'
 import { Chart } from './level'
 import User from './user'
 
 export class RecordDetails {
   @IsInt()
   @Min(0)
-  perfect: number
+  public perfect: number
 
   @IsInt()
   @Min(0)
-  great: number
+  public great: number
 
   @IsInt()
   @Min(0)
-  good: number
+  public good: number
 
   @IsInt()
   @Min(0)
-  bad: number
+  public bad: number
 
   @IsInt()
   @Min(0)
-  miss: number
+  public miss: number
 
   @IsInt()
   @Min(0)
-  max_combo: number
+  public max_combo: number
 }
 
 export enum GameplayMods {

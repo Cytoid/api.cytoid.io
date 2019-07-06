@@ -1,6 +1,6 @@
-import { redis } from '../db'
 import { randomBytes as randomCallback } from 'crypto'
 import { promisify } from 'util'
+import { redis } from '../db'
 const randomBytes = promisify(randomCallback)
 
 export class VerificationCodeManager {
@@ -12,10 +12,6 @@ export class VerificationCodeManager {
     this.name = name
     this.keyLength = 30
     this.ttl = 600
-  }
-
-  private storeKey(key: string) {
-    return this.name + ':' + key
   }
 
   public async generate(credential: string) {
@@ -36,5 +32,9 @@ export class VerificationCodeManager {
       await redis.delAsync(key)
     }
     return credential
+  }
+
+  private storeKey(key: string) {
+    return this.name + ':' + key
   }
 }

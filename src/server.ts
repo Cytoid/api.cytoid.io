@@ -1,12 +1,12 @@
+import app from './app'
 import conf from './conf'
 import logger from './logger'
-import app from './app'
 
 const port: number = conf.get('port')
 const host: string = conf.get('host')
 import {createServer} from 'http2'
 
-if (process.env['HTTP2']) {
+if (process.env.HTTP2) {
   createServer(app.callback())
     .listen(port, () => {
 

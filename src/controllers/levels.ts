@@ -17,8 +17,8 @@ import {
   CurrentUser,
   ForbiddenError,
   Get, HttpError, JsonController, NotFoundError, Param,
-  Post, QueryParam, Redirect, UseBefore,
-  Patch,
+  Patch, Post, QueryParam, Redirect,
+  UseBefore,
 } from 'routing-controllers'
 import {getRepository, In, SelectQueryBuilder} from 'typeorm'
 
@@ -66,10 +66,12 @@ export default class LevelController extends BaseController {
     packagePath: 'levels/packages/',
     bundlePath: 'levels/bundles/',
   }
+
+  public levelsPerPage = 18
   private levelRepo = getRepository(Level)
   private chartRepo = getRepository(Chart)
 
-  public levelsPerPage = 18
+  private levelRatingCacheKey = 'cytoid:level:ratings:'
 
   @Get('/:id')
   @UseBefore(OptionalAuthenticate)
@@ -304,8 +306,6 @@ export default class LevelController extends BaseController {
       })
   }
 
-  private levelRatingCacheKey = 'cytoid:level:ratings:'
-
   /**
    * Get the rating distribution, total count, and mean ratings for a level.
    * If the user was authenticated, also returns the rating the user gave.
@@ -427,44 +427,6 @@ FROM ratings`,
         return a
       })
   }
-
-  private queryLeaderboard(levelUid: string, chartType: string) {
-    const mainQuery: SelectQueryBuilder<Record> = this.db
-    .createQueryBuilder()
-    .select([
-      'u.name',
-      'u.uid',
-      'u.email',
-      'u.avatarPath',
-      'u.id',
-      'r.id',
-      'r.date',
-      'r.score',
-      'r.accuracy',
-      'r.details',
-      'r.mods',
-      'rank() OVER (ORDER BY score DESC, date ASC)',
-    ])
-      .from((qb: SelectQueryBuilder<Record>) => qb
-        .select('DISTINCT ON ("ownerId") *')
-        .from(Record, 'record')
-        .where(
-          '"chartId"=' +
-          '(SELECT id FROM charts WHERE "levelId"=(SELECT id FROM levels WHERE uid=:uid) AND type=:type)',
-          { uid: levelUid, type: chartType },
-        )
-        .andWhere('ranked=true')
-        .orderBy('"ownerId"')
-        .addOrderBy('score', 'DESC')
-        .addOrderBy('date', 'ASC'), 'r')
-
-    // Adding metadata for our 'from' subquery
-    // The metadata of the subquery is undetermined so we have to add it manually
-    const subqueryAlias = mainQuery.expressionMap.findAliasByName('r')
-    subqueryAlias.metadata = mainQuery.connection.getMetadata(Record)
-
-    return mainQuery.leftJoin('r.owner', 'u')
-  }
   @Get('/:id/charts/:chartType/ranking')
   public async getChartRanking(
     @Ctx() ctx: Context,
@@ -566,5 +528,43 @@ RETURNING "packagePath"`, [id])
       path,
       assetsURL: conf.assetsURL,
     }
+  }
+
+  private queryLeaderboard(levelUid: string, chartType: string) {
+    const mainQuery: SelectQueryBuilder<Record> = this.db
+    .createQueryBuilder()
+    .select([
+      'u.name',
+      'u.uid',
+      'u.email',
+      'u.avatarPath',
+      'u.id',
+      'r.id',
+      'r.date',
+      'r.score',
+      'r.accuracy',
+      'r.details',
+      'r.mods',
+      'rank() OVER (ORDER BY score DESC, date ASC)',
+    ])
+      .from((qb: SelectQueryBuilder<Record>) => qb
+        .select('DISTINCT ON ("ownerId") *')
+        .from(Record, 'record')
+        .where(
+          '"chartId"=' +
+          '(SELECT id FROM charts WHERE "levelId"=(SELECT id FROM levels WHERE uid=:uid) AND type=:type)',
+          { uid: levelUid, type: chartType },
+        )
+        .andWhere('ranked=true')
+        .orderBy('"ownerId"')
+        .addOrderBy('score', 'DESC')
+        .addOrderBy('date', 'ASC'), 'r')
+
+    // Adding metadata for our 'from' subquery
+    // The metadata of the subquery is undetermined so we have to add it manually
+    const subqueryAlias = mainQuery.expressionMap.findAliasByName('r')
+    subqueryAlias.metadata = mainQuery.connection.getMetadata(Record)
+
+    return mainQuery.leftJoin('r.owner', 'u')
   }
 }

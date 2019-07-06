@@ -19,7 +19,7 @@ const JWTOptions = {
 passport.use(
   new JwtStrategy(JWTOptions, async (jwt_payload, done) => {
     return done(null, jwt_payload.sub)
-  })
+  }),
 )
 export function signJWT(payload: any): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -28,8 +28,7 @@ export function signJWT(payload: any): Promise<string> {
       issuer: JWTOptions.issuer,
       expiresIn: '10d',
     }, (err: Error, encoded: string) => {
-      if (err) reject(err)
-      else resolve(encoded)
+      if (err) { reject(err) } else { resolve(encoded) }
     })
   })
 }
@@ -75,17 +74,19 @@ const authorizationCheckers: Middleware[] = [
 export function authorizationChecker(action: Action, roles: string[]) {
   for (const authenticator of authorizationCheckers) {
     authenticator(action.context, () => Promise.resolve())
-    if (action.context.state.user)
+    if (action.context.state.user) {
       break
+    }
   }
   return action.context.state.user
 }
 
-export function OptionalAuthenticate(context: any, next: (err?: Error) => Promise<any>){
+export function OptionalAuthenticate(context: any, next: (err?: Error) => Promise<any>) {
   for (const authenticator of authorizationCheckers) {
     authenticator(context, () => Promise.resolve())
-    if (context.state.user)
+    if (context.state.user) {
       break
+    }
   }
   context.status = 200
   return next()
