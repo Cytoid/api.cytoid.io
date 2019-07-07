@@ -123,7 +123,7 @@ export default class LevelController extends BaseController {
       .from('levels', 'levels')
       .where('levels.uid=:id', { id })
       .getRawOne()
-      .then((a) => a.raw)
+      .then((a) => a && a.raw)
   }
 
   @Patch('/:id')
@@ -137,6 +137,9 @@ export default class LevelController extends BaseController {
     })
     if (existingLevel.ownerId !== user.id) {
       throw new ForbiddenError('User does not own the level!')
+    }
+    if (level.tags) {
+      level.tags = level.tags.map((a) => a.toLowerCase())
     }
     delete level.censored
     delete level.uid
@@ -187,7 +190,10 @@ export default class LevelController extends BaseController {
       .limit(pageLimit)
       .offset(pageLimit * pageNum)
 
-    if (ctx.request.query.sort && keyMap[ctx.request.query.sort]) {
+    if (ctx.request.query.sort &&
+      keyMap[ctx.request.query.sort] &&
+      ctx.request.query.sort !== 'creation_date'
+    ) {
       query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder)
         .addOrderBy('levels.date_created', 'DESC')
     } else if (!ctx.request.query.search) {
@@ -241,7 +247,9 @@ export default class LevelController extends BaseController {
     if ('tags' in ctx.request.query) {
       query = query.addSelect('levels.tags')
       if (ctx.request.query.tags) {
-        const tags = ctx.request.query.tags.split('|')
+        const tags = ctx.request.query.tags
+          .split('|')
+          .map((a: string) => a.toLowerCase())
         query = query
           .andWhere('levels.tags@>:tags', { tags })
       }
