@@ -29,6 +29,7 @@ import {redis} from '../db'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
 import User, { IUser } from '../models/user'
+import URLSigner from '../utils/sign_url'
 import BaseController from './base'
 const validator = new Validator()
 
@@ -72,6 +73,8 @@ export default class LevelController extends BaseController {
   private chartRepo = getRepository(Chart)
 
   private levelRatingCacheKey = 'cytoid:level:ratings:'
+
+  private urlSigner = new URLSigner()
 
   @Get('/:id')
   @UseBefore(OptionalAuthenticate)
@@ -532,10 +535,8 @@ SET downloads=downloads+1
 WHERE uid=$1
 RETURNING "packagePath"`, [id])
       .then((a) => a[0].packagePath)
-    return {
-      path,
-      assetsURL: conf.assetsURL,
-    }
+
+    return this.urlSigner.signURL(conf.assetsURL, path, 3600)
   }
 
   private queryLeaderboard(levelUid: string, chartType: string) {

@@ -25,6 +25,7 @@ export interface IAppConfiguration extends IConfig {
     },
   },
   captchaKey: string,
+  cdnKey: string,
 }
 
 const conf: IAppConfiguration = require('config')
