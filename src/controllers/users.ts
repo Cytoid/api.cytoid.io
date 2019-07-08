@@ -95,7 +95,7 @@ export default class UserController extends BaseController {
     }
     return this.db.createQueryBuilder()
       .update(User)
-      .set({ uid: newUser.uid, name: newUser.name })
+      .set({ name: newUser.name })
       .where('id=:id', { id })
       .execute()
   }

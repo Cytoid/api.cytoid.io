@@ -9,9 +9,10 @@ import {
   Get,
   HttpCode,
   InternalServerError, JsonController, NotFoundError,
-  Param,
-  Post, UseBefore,
+  Param, Patch,
+  Post, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
+import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
 import config from '../conf'
 import eventEmitter from '../events'
@@ -26,6 +27,8 @@ const CodeVerifier = new VerificationCodeManager('password_reset')
 
 @JsonController('/session')
 export default class UserController extends BaseController {
+  private userRepo = getRepository(User)
+
   @Post('/')
   @UseBefore(authenticate('local'))
   @UseBefore(CaptchaMiddleware('login'))
@@ -49,6 +52,28 @@ export default class UserController extends BaseController {
     return {
       user,
     }
+  }
+
+  @Patch('/password')
+  @Authorized()
+  public async passwordChange(
+    @BodyParam('old') oldPassword: string,
+    @BodyParam('new') newPassword: string,
+    @CurrentUser() sessionUser: IUser,
+  ): Promise<null> {
+    const user: User = await this.userRepo.findOne(
+      { id: sessionUser.id },
+      {
+        select: ['password'],
+      },
+    )
+    if (!(await user.checkPassword(oldPassword))) {
+      throw new UnauthorizedError('old password wrong')
+    }
+    await user.setPassword(newPassword)
+    await this.userRepo.update({ id: sessionUser.id }, user)
+    eventEmitter.emit('password_change')
+    return null
   }
 
   @HttpCode(202)
