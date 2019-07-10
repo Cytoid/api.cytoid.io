@@ -554,7 +554,7 @@ RETURNING "packagePath"`, [id])
       'r.accuracy',
       'r.details',
       'r.mods',
-      'rank() OVER (ORDER BY score DESC, date ASC)',
+      '(rank() OVER (ORDER BY score DESC, date ASC))::integer',
     ])
       .from((qb: SelectQueryBuilder<Record>) => qb
         .select('DISTINCT ON ("ownerId") *')

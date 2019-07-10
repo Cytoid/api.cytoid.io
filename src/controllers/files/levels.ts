@@ -24,8 +24,10 @@ const LevelUploadHandler: IFileUploadHandler =  {
       .then((res) => res.data)
       .catch((error) => {
         if (error.response && error.response.data) {
+          console.log(error.response.data)
           throw new BadRequestError(error.response.data.message || 'Unknown Error')
         }
+        console.error(error)
         throw new InternalServerError('Errors in package analytics services')
       })
     const packageMeta: PackageMeta.IMeta = leveldata.metadata
