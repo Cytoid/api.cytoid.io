@@ -34,7 +34,6 @@ export class Level {
   @PrimaryGeneratedColumn()
   public id: number
 
-  @VersionColumn()
   public version: number
 
   @Column({ unique: true })
@@ -48,6 +47,9 @@ export class Level {
 
   @Column('decimal', { precision: 6, scale: 2 })
   public duration: number
+
+  @Column('int')
+  public size: number
 
   @Column('text')
   public description: string
@@ -93,9 +95,6 @@ export class Level {
   @Type(() => Chart)
   @OneToMany(() => Chart, (chart) => chart.level)
   public charts: Chart[]
-
-  @Column()
-  public downloads: number
 }
 
 export interface ILevelBundleDirectory extends IDirectory {
@@ -128,6 +127,10 @@ export class Chart {
 
   @Column({ nullable: false })
   public notesCount: number
+
+  @Column({ nullable: false, select: false })
+  @Exclude()
+  public checksum: string
 }
 
 @Entity ('level_ratings')
@@ -151,4 +154,29 @@ export class Rating {
 
   @Column('smallint')
   public rating: number
+}
+
+@Entity ('level_downloads')
+@Unique(['level', 'user'])
+export class Download {
+  @PrimaryGeneratedColumn()
+  public id: number
+
+  @Column()
+  public levelId: number
+
+  @ManyToOne(() => Level, { onDelete: 'CASCADE', nullable: false })
+  public level: Level
+
+  @Column()
+  public userId: string
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: false })
+  public user: User
+
+  @Column('timestamp')
+  public date: Date
+
+  @Column('smallint')
+  public count: number
 }

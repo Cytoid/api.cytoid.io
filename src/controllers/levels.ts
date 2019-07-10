@@ -16,11 +16,11 @@ import {
   Ctx,
   CurrentUser,
   ForbiddenError,
-  Get, HttpError, JsonController, NotFoundError, Param,
-  Patch, Post, QueryParam, Redirect,
-  UseBefore,
+  Get, HeaderParam, HttpError, JsonController, NotFoundError,
+  Param, Patch, Post, QueryParam, Redirect,
+  UnauthorizedError, UseBefore,
 } from 'routing-controllers'
-import {getRepository, In, SelectQueryBuilder} from 'typeorm'
+import {getRepository, SelectQueryBuilder} from 'typeorm'
 
 import { Validator } from 'class-validator'
 import {OptionalAuthenticate} from '../authentication'
@@ -28,7 +28,7 @@ import conf from '../conf'
 import {redis} from '../db'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
-import User, { IUser } from '../models/user'
+import { IUser } from '../models/user'
 import URLSigner from '../utils/sign_url'
 import BaseController from './base'
 const validator = new Validator()
@@ -96,7 +96,6 @@ export default class LevelController extends BaseController {
 
         const result: any = level
         result.bundle = level.bundle.toPlain()
-
         result.packageSize = result.package.size
         delete result.package
         delete result.packagePath
@@ -171,23 +170,32 @@ export default class LevelController extends BaseController {
       creation_date: 'levels.date_created',
       modification_date: 'levels.date_modified',
       duration: 'levels.duration',
-      downloads: 'levels.downloads',
+      downloads: '(SELECT count(*) FROM level_downloads WHERE "levelId"=levels.id) as downloads',
       rating: 'rating',
       difficulty: (sortOrder === 'asc' ? 'max' : 'min') + '(charts.difficulty)',
     }
     let query = this.db.createQueryBuilder(Level, 'levels')
-      .leftJoin('levels.bundle', 'bundle', "bundle.type='bundle' AND bundle.created=true")
+      .leftJoin('levels.bundle', 'bundle', "bundle.type='bundle'")
       .leftJoin('levels.owner', 'owner')
       .leftJoin('levels.charts', 'charts')
       .select([
         'levels.title',
         'levels.id',
         'levels.uid',
-        'levels.metadata',
+        "levels.metadata->'artist'->>'name' as artist",
+        "levels.metadata->'illustrator'->>'name' as illustrator",
+        "levels.metadata->'charter'->>'name' as charter",
+        "levels.metadata->>'title_localized' as title_localized",
         'bundle.content',
         'bundle.path',
+        'levels.modificationDate',
+        'levels.creationDate',
         'json_agg(charts ORDER BY charts.difficulty) as charts',
         '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
+        '(SELECT count(*) FROM level_downloads WHERE "levelId"=levels.id) as downloads',
+        '(SELECT count(*) FROM records ' +
+        'JOIN charts ON charts.id=records."chartId" ' +
+        'WHERE charts."levelId"=levels.id) as plays',
       ])
       .groupBy('levels.id, bundle.path, owner.id')
       .limit(pageLimit)
@@ -273,14 +281,6 @@ export default class LevelController extends BaseController {
       const isUUID = validator.isUUID(ctx.request.query.owner)
       query = query
         .andWhere(`owner.${isUUID ? 'id' : 'uid'}=:id`, { id: ctx.request.query.owner })
-        .addSelect([
-          'levels.downloads',
-          '(SELECT count(*) FROM records ' +
-          'JOIN charts ON charts.id=records."chartId" ' +
-          'WHERE charts."levelId"=levels.id) as plays',
-          'levels.modificationDate',
-          'levels.creationDate',
-        ])
     } else {
       query = query.addSelect([
         'owner.uid',
@@ -311,7 +311,14 @@ export default class LevelController extends BaseController {
           level.bundle = level.bundle.toPlain()
           level.charts = rawRecord.charts
           level.rating = parseFloat(rawRecord.rating) || null
-          level.plays = rawRecord.plays || 0
+          level.plays = parseInt(rawRecord.plays, 10) // Optional
+          level.downloads = parseInt(rawRecord.downloads, 10) // Optional
+          level.metadata = {
+            artist: rawRecord.artist,
+            illustrator: rawRecord.illustrator,
+            charter: rawRecord.charter,
+            title_localized: rawRecord.title_localized,
+          }
           return level
         })
       })
@@ -438,6 +445,25 @@ FROM ratings`,
         return a
       })
   }
+
+  @Get('/:id/charts/:chartType/checksum')
+  public getLevelChecksum(
+    @HeaderParam('authorization') token: string,
+    @Param('id') id: string,
+    @Param('chartType') chartType: string,
+  ) {
+    if (token !== '6gH2cFOhN&R2qZGoHP6@I*zhlGntjrN1k4aZ3XS#TUj7K^cG$v') {
+      throw new UnauthorizedError()
+    }
+    return this.db.createQueryBuilder()
+      .select('checksum')
+      .from(Chart, 'chart')
+      .where('type = :chartType', {chartType})
+      .andWhere('"levelId" = (SELECT id FROM levels WHERE uid = :levelId)', {levelId: id})
+      .getRawOne()
+      .then((a) => a && a.checksum)
+  }
+
   @Get('/:id/charts/:chartType/ranking')
   public async getChartRanking(
     @Ctx() ctx: Context,
@@ -528,13 +554,17 @@ FROM ratings`,
   @Get('/:id/package')
   @Authorized()
   @Redirect(':assetsURL/:path')
-  public async downloadPackage(@Param('id') id: string) {
-    const path = await this.db.query(`
-UPDATE levels
-SET downloads=downloads+1
-WHERE uid=$1
-RETURNING "packagePath"`, [id])
-      .then((a) => a[0].packagePath)
+  public async downloadPackage(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    await this.db.query(`\
+    INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
+    ON CONFLICT ("levelId", "userId")
+    DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`,
+      [levelId, user.id])
+
+    const path = await this.db.createQueryBuilder(Level, 'l')
+      .select('l.packagePath')
+      .getOne()
+      .then((a) => a.packagePath)
 
     return this.urlSigner.signURL(conf.assetsURL, path, 3600)
   }

@@ -6,11 +6,9 @@ CREATE TABLE "emails" (
 CREATE TABLE "files" (
   "path"         varchar   NOT NULL PRIMARY KEY,
   "type"         varchar   NOT NULL,
-  "size"         integer,
   "content"      jsonb,
   "date_created" TIMESTAMP NOT NULL DEFAULT now(),
-  "ownerId"      uuid,
-  "created"      boolean   DEFAULT false
+  "ownerId"      uuid
 );
 CREATE TABLE "users" (
   "id"                uuid      PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -47,7 +45,7 @@ CREATE TABLE "levels" (
   "ownerId"       uuid REFERENCES "users" ("id") ON DELETE SET NULL,
   "packagePath"   varchar REFERENCES "files" ("path") ON DELETE SET NULL,
   "bundlePath"    varchar REFERENCES "files" ("path") ON DELETE SET NULL,
-  "downloads"     integer        NOT NULL DEFAULT 0,
+  "size"          integer        NOT NULL
 );
 CREATE TABLE "charts" (
   "id"         SERIAL   NOT NULL PRIMARY KEY,
@@ -56,6 +54,7 @@ CREATE TABLE "charts" (
   "type"       varchar  NOT NULL,
   "levelId"    integer REFERENCES "levels" ("id") ON DELETE CASCADE,
   "notesCount" integer NOT NULL,
+  "checksum"   varchar,
   UNIQUE ("levelId", "type")
 );
 CREATE TABLE "level_ratings" (
@@ -76,6 +75,15 @@ CREATE TABLE "records" (
   "ranked"   boolean        NOT NULL,
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+CREATE TABLE "level_downloads" (
+  "id"       SERIAL    NOT NULL PRIMARY KEY,
+  "userId"   uuid      NOT NULL REFERENCES "users" ("id")  ON DELETE CASCADE,
+  "levelId"  integer   NOT NULL REFERENCES "levels" ("id") ON DELETE CASCADE,
+  "date"     TIMESTAMP NOT NULL DEFAULT now(),
+  "count"    smallint  NOT NULL DEFAULT 0,
+  UNIQUE ("levelId", "userId")
 );
 
 CREATE MATERIALIZED VIEW tags_search AS

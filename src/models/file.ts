@@ -25,9 +25,6 @@ export default class File {
   @Column()
   public type: string
 
-  @Column()
-  public size: number
-
   @Column('jsonb', { nullable: true, comment: 'null for standalone files' })
   public content?: IDirectory
 
@@ -42,8 +39,6 @@ export default class File {
   @CreateDateColumn({name: 'date_created'})
   public creationDate: Date
 
-  @Column({default: false})
-  public created: boolean
   public constructor(path: string, type: string) {
     this.path = path
     this.type = type

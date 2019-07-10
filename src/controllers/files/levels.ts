@@ -51,6 +51,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
       raw: packageMeta,
     }
     level.duration = leveldata.duration
+    level.size = leveldata.size
 
     // TODO: Optimizations
     if (packageMeta.artist) {
@@ -79,7 +80,6 @@ const LevelUploadHandler: IFileUploadHandler =  {
 
     level.bundle = new File(bundlePath, 'bundle') as ILevelBundle
     level.bundle.ownerId = user.id
-    level.bundle.created = true
     level.bundle.content = {
       music: packageMeta.music && packageMeta.music.path,
       music_preview: packageMeta.music_preview && packageMeta.music_preview.path,
@@ -94,6 +94,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
       entity.name = chart.name
       entity.level = level
       entity.notesCount = chart.notesCount
+      entity.checksum = chart.checksum
       return entity
     })
 
@@ -124,6 +125,7 @@ namespace PackageMeta {
     name?: string
     difficulty: number
     notesCount: number
+    checksum: string
   }
 
   export interface IResource {
