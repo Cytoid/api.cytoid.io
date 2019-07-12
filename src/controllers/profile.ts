@@ -174,6 +174,7 @@ from (select r.*, rank() over (partition by r."chartId" order by r.score desc)
 join charts on charts.id=ranking."chartId"
 join levels on charts."levelId" = levels.id
 join files on files.type='bundle' and files.path=levels."bundlePath"
+WHERE levels.published=true
 order by ranking.date desc
 limit 10;
 `, [uuid])

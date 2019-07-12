@@ -41,6 +41,7 @@ passport.use(
         {uid: username},
         {email: username},
       ],
+      select: ['id', 'uid', 'name', 'email', 'avatarPath', 'password'],
     })
     if (!user) { return done(null, false) }
     const passwordVerified = await user.checkPassword(password)

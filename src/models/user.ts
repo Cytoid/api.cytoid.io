@@ -46,11 +46,11 @@ export default class User implements IUser {
   @Exclude()
   public avatarPath?: string
 
-  @CreateDateColumn({ name: 'date_registration' })
+  @CreateDateColumn({ name: 'date_registration', select: false })
   public registrationDate: Date
 
   @Exclude()
-  @Column('bytea')
+  @Column('bytea', { select: false })
   public password: Buffer
 
   @Expose()

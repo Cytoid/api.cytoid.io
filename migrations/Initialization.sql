@@ -76,6 +76,7 @@ CREATE TABLE "records" (
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
 );
+CREATE INDEX records_chart ON records USING hash ("chartId");
 
 CREATE TABLE "level_downloads" (
   "id"       SERIAL    NOT NULL PRIMARY KEY,

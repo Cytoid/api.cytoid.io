@@ -29,7 +29,7 @@ import {redis} from '../db'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
 import { IUser } from '../models/user'
-import URLSigner from '../utils/sign_url'
+import signURL from '../utils/sign_url'
 import BaseController from './base'
 const validator = new Validator()
 
@@ -73,8 +73,6 @@ export default class LevelController extends BaseController {
   private chartRepo = getRepository(Chart)
 
   private levelRatingCacheKey = 'cytoid:level:ratings:'
-
-  private urlSigner = new URLSigner()
 
   @Get('/:id')
   @UseBefore(OptionalAuthenticate)
@@ -170,7 +168,8 @@ export default class LevelController extends BaseController {
       creation_date: 'levels.date_created',
       modification_date: 'levels.date_modified',
       duration: 'levels.duration',
-      downloads: '(SELECT count(*) FROM level_downloads WHERE "levelId"=levels.id) as downloads',
+      downloads: 'downloads',
+      plays: 'plays',
       rating: 'rating',
       difficulty: (sortOrder === 'asc' ? 'max' : 'min') + '(charts.difficulty)',
     }
@@ -566,7 +565,7 @@ FROM ratings`,
       .getOne()
       .then((a) => a.packagePath)
 
-    return this.urlSigner.signURL(conf.assetsURL, path, 3600)
+    return signURL(conf.assetsURL, path, 3600)
   }
 
   private queryLeaderboard(levelUid: string, chartType: string) {
