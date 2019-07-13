@@ -160,24 +160,32 @@ FROM scores, chart_scores;`, [uuid])
 
   public recentRanks(uuid: string) {
     return this.db.query(`
-select ranking.score, ranking.accuracy, ranking.rank, ranking.date,
-   charts.difficulty, charts.type, charts."notesCount", charts.name as chart_name,
-   levels.uid, levels.title, concat(files.path, '/', (files.content->>'background')) as background_path
-from (select r.*, rank() over (partition by r."chartId" order by r.score desc)
-      from records r
-      where r.ranked = true) ranking
-         join (select max(r.score) as max_score, r."chartId"
-               from records r
-               where r."ownerId" = $1
-               group by r."chartId") max_scores
-              on max_scores."chartId" = ranking."chartId" and max_scores.max_score = ranking.score
-join charts on charts.id=ranking."chartId"
-join levels on charts."levelId" = levels.id
-join files on files.type='bundle' and files.path=levels."bundlePath"
-WHERE levels.published=true
-order by ranking.date desc
-limit 10;
-`, [uuid])
+SELECT records.*,
+charts.difficulty,
+charts.type,
+charts."notesCount",
+charts.name as chart_name,
+levels.uid,
+levels.title,
+concat(files.path, '/', (files.content ->> 'background')) AS background_path,
+(SELECT min(rank)
+FROM (SELECT a."ownerId", rank() OVER (ORDER BY a.score DESC)
+      FROM records a
+      WHERE a."chartId" = records."chartId"
+        AND a.ranked = true) b
+WHERE b."ownerId" = $1) rank
+FROM (
+         SELECT DISTINCT on (records."chartId") score, accuracy, date, "chartId"
+         FROM records
+         WHERE records."ownerId" = $1
+           AND ranked = true
+         ORDER BY records."chartId", records.score DESC
+         LIMIT 10
+     ) records
+         JOIN charts on records."chartId" = charts.id
+         JOIN levels on charts."levelId" = levels.id
+         JOIN files on levels."bundlePath" = files.path
+ORDER BY records.date DESC;`, [uuid])
       .then((results) => results.map((result: any) => {
         result.backgroundURL = conf.assetsURL + '/' + result.background_path
         delete result.background_path
