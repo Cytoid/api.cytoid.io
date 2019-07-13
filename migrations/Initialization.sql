@@ -27,7 +27,7 @@ CREATE TABLE "profiles" (
   "birthday"          DATE,
   "headerPath"        varchar   REFERENCES "files"("path") ON DELETE SET NULL,
   "bio"               text      NOT NULL DEFAULT '',
-  "badges"            varchar[] NOT NULL DEFAULT '{}'
+  "badges"            varchar[] NOT NULL DEFAULT ARRAY[]::varchar[]
 );
 CREATE TABLE "levels" (
   "id"            SERIAL         NOT NULL PRIMARY KEY,
@@ -39,7 +39,8 @@ CREATE TABLE "levels" (
   "description"   text           NOT NULL,
   "published"     boolean        DEFAULT false,
   "censored"      varchar,
-  "tags"          varchar[]      NOT NULL,
+  "tags"          varchar[]      NOT NULL DEFAULT ARRAY[]::varchar[],
+  "category"      varchar[]      NOT NULL DEFAULT ARRAY[]::varchar[],
   "date_created"  TIMESTAMP      NOT NULL DEFAULT now(),
   "date_modified" TIMESTAMP      NOT NULL DEFAULT now(),
   "ownerId"       uuid REFERENCES "users" ("id") ON DELETE SET NULL,
@@ -71,7 +72,7 @@ CREATE TABLE "records" (
   "score"    integer        NOT NULL,
   "accuracy" real           NOT NULL,
   "details"  jsonb          NOT NULL,
-  "mods"     varchar(32) [] NOT NULL DEFAULT '{}',
+  "mods"     varchar(32) [] NOT NULL DEFAULT ARRAY[]::varchar[],
   "ranked"   boolean        NOT NULL,
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
@@ -94,7 +95,7 @@ CREATE TABLE "posts" (
   "ownerId"       uuid      REFERENCES "users" ("id") ON DELETE SET NULL,
   "title"         varchar   NOT NULL,
   "subtitle"      varchar   NOT NULL,
-  "tags"          varchar[] NOT NULL,
+  "tags"          varchar[] NOT NULL DEFAULT ARRAY[]::varchar[],
   "date_created"  TIMESTAMP NOT NULL DEFAULT now(),
   "content"       text      NOT NULL,
   "metadata"      jsonb     NOT NULL,

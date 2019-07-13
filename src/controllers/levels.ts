@@ -249,9 +249,9 @@ export default class LevelController extends BaseController {
     }
     if ('featured' in ctx.request.query) {
       if (ctx.request.query.featured === 'true') {
-        query = query.andWhere("(levels.metadata->'featured')::boolean=true")
+        query = query.andWhere("'featured'=ANY(levels.category)")
       } else {
-        query = query.andWhere("(levels.metadata->'featured')::boolean=false OR levels.metadata->'featured' IS NULL")
+        query = query.andWhere("NOT ('featured'=ANY(levels.category))")
       }
     }
     if ('tags' in ctx.request.query) {

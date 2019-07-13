@@ -160,32 +160,28 @@ FROM scores, chart_scores;`, [uuid])
 
   public recentRanks(uuid: string) {
     return this.db.query(`
-SELECT records.*,
-charts.difficulty,
-charts.type,
-charts."notesCount",
-charts.name as chart_name,
-levels.uid,
-levels.title,
+SELECT records.score, records.accuracy, records.date,
+charts.difficulty, charts.type, charts."notesCount", charts.name as "chartName",
+levels.uid, levels.title,
 concat(files.path, '/', (files.content ->> 'background')) AS background_path,
-(SELECT min(rank)
-FROM (SELECT a."ownerId", rank() OVER (ORDER BY a.score DESC)
+(SELECT rank
+FROM (SELECT a."ownerId", rank() OVER (ORDER BY max(a.score) DESC)
       FROM records a
       WHERE a."chartId" = records."chartId"
-        AND a.ranked = true) b
-WHERE b."ownerId" = $1) rank
+        AND a.ranked = true
+      GROUP BY a."ownerId") b
+WHERE b."ownerId" = $1)::integer rank
 FROM (
          SELECT DISTINCT on (records."chartId") score, accuracy, date, "chartId"
          FROM records
          WHERE records."ownerId" = $1
            AND ranked = true
          ORDER BY records."chartId", records.score DESC
-         LIMIT 10
      ) records
          JOIN charts on records."chartId" = charts.id
          JOIN levels on charts."levelId" = levels.id
          JOIN files on levels."bundlePath" = files.path
-ORDER BY records.date DESC;`, [uuid])
+ORDER BY records.date DESC LIMIT 10;`, [uuid])
       .then((results) => results.map((result: any) => {
         result.backgroundURL = conf.assetsURL + '/' + result.background_path
         delete result.background_path
@@ -196,7 +192,7 @@ ORDER BY records.date DESC;`, [uuid])
   public levels(id: string) {
     return this.db.createQueryBuilder()
       .select([
-        'count(levels.id) filter (where (levels.metadata->\'featured\')::boolean=true) as featured_levels_count',
+        "count(levels.id) filter (WHERE 'featured'=ANY(levels.category)) as featured_levels_count",
         'count(levels.id) as total_levels_count',
       ])
       .from('levels', 'levels')

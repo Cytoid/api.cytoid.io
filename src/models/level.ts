@@ -65,8 +65,11 @@ export class Level {
   @Column('varchar',  {nullable: true})
   public censored?: string
 
-  @Column('varchar', { array: true, length: 30 })
+  @Column('varchar', { array: true })
   public tags: string[]
+
+  @Column('varchar', { array: true })
+  public category: string[]
 
   @Exclude()
   @Column({nullable: true})

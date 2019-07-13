@@ -47,7 +47,14 @@ export default class RecordsController extends BaseController {
         entities.forEach((record: any, index) => {
           const rawEntry = raw[index]
           record.rank = parseInt(rawEntry.rank, 10)
-          record.chart.level.backgroundURL = conf.assetsURL + '/' + rawEntry.background_path
+          record.backgroundURL = conf.assetsURL + '/' + rawEntry.background_path
+          record.chartName = record.chart.name
+          record.type = record.chart.type
+          record.difficulty = record.chart.difficulty
+          record.notesCount = record.chart.notesCount
+          record.uid = record.chart.level.uid
+          record.title = record.chart.level.title
+          delete record.chart
         })
         return entities
       })
