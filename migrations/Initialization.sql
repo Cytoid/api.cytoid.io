@@ -87,6 +87,20 @@ CREATE TABLE "level_downloads" (
   UNIQUE ("levelId", "userId")
 );
 
+
+CREATE TABLE "posts" (
+  "id"            SERIAL    NOT NULL PRIMARY KEY,
+  "slug"          varchar   NOT NULL UNIQUE,
+  "ownerId"       uuid      REFERENCES "users" ("id") ON DELETE SET NULL,
+  "title"         varchar   NOT NULL,
+  "subtitle"      varchar   NOT NULL,
+  "tags"          varchar[] NOT NULL,
+  "date_created"  TIMESTAMP NOT NULL DEFAULT now(),
+  "content"       text      NOT NULL,
+  "metadata"      jsonb     NOT NULL,
+  "headerPath"    varchar   REFERENCES "files"("path") ON DELETE SET NULL
+);
+
 CREATE MATERIALIZED VIEW tags_search AS
     SELECT tag,
            count(tag),
