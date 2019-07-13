@@ -56,13 +56,15 @@ export default class User implements IUser {
   @Expose()
   public get avatarURL(): string | null {
     if (this.avatarPath) {
-      return config.assetsURL + '/' + this.avatarPath
-    }
-    if (this.email) {
+      const url = new URL(this.avatarPath, config.assetsURL)
+      return url.href
+    } else if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
-      return config.gravatarURL + '/' + hash
+      const url = new URL('avatar/' + hash, config.gravatarURL)
+      return url.href
+    } else {
+      return null
     }
-    return null
   }
 
   public setPassword(password: string) {

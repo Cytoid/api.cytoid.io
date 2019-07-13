@@ -1,0 +1,58 @@
+import axios from 'axios'
+import * as LRU from 'lru-cache'
+import {Get, JsonController} from 'routing-controllers'
+
+@JsonController('/integrations')
+export default class {
+  private cacheStore = new LRU({
+    max: 10,
+    maxAge: 5 * 60 * 1000,
+  })
+  private twitterClient = axios.create({
+    baseURL: 'https://api.twitter.com/1.1',
+    headers: {
+      authorization: 'Bearer AAAAAAAAAAAAAAAAAAAAACyQ6gAAAAAAm2vXLOCiVXJ0C3kpy1i4hwIJBA0%3DQL' +
+        'bVGbFpJsOPGOZwMpjCa3iYECp8fxtsGcal49qKNhiGg8BHK9'
+    },
+  })
+  @Get('/twitter')
+  public twitter() {
+    if (this.cacheStore.has('twitter')) {
+      return this.cacheStore.get('twitter')
+    }
+    return this.twitterClient.get('/statuses/user_timeline.json', {
+      params: {
+        screen_name: 'cytoidio',
+        count: 10,
+        exclude_replies: true,
+      },
+    })
+      .then((res) => {
+        this.cacheStore.set('twitter', res.data)
+        return res.data
+      })
+  }
+
+  private disqusClient = axios.create({
+    baseURL: 'https://disqus.com/api/3.0',
+  })
+
+  @Get('/disqus')
+  public disqus() {
+    if (this.cacheStore.has('disqus')) {
+      return this.cacheStore.get('disqus')
+    }
+    return this.disqusClient.get('/posts/list', {
+      params: {
+        forum: 'cytoid',
+        related: 'thread',
+        limit: 5,
+        api_key: '2oagGwNP861vUbeaEGBNjF1w4tal8nzadoRMz5k1rwdItCIQX133xtq1K3nUwcs3'
+      },
+    })
+      .then((res) => {
+        this.cacheStore.set('disqus', res.data)
+        return res.data
+      })
+  }
+}
