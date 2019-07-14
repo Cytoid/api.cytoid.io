@@ -39,8 +39,10 @@ export default class ProfileController extends BaseController {
     }
     const profile: any = await this.profileRepo.findOne({
       where: {id: user.id},
+      relations: ['user'],
     })
     profile.headerURL = conf.assetsURL + '/' + profile.headerPath
+    delete profile.user.id
     delete profile.headerPath
     if (!stats) {
       return profile

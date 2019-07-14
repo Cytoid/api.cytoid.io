@@ -15,8 +15,10 @@ import {
 import {getRepository} from 'typeorm'
 import {signJWT} from '../authentication'
 import config from '../conf'
+import conf from '../conf'
 import eventEmitter from '../events'
 import CaptchaMiddleware from '../middlewares/captcha'
+import Profile from '../models/profile'
 import User, {IUser} from '../models/user'
 import MailClient from '../utils/mail'
 import PasswordManager from '../utils/password'
@@ -49,9 +51,29 @@ export default class UserController extends BaseController {
   @Get('/')
   @Authorized()
   public status(@Ctx() ctx: Context, @CurrentUser() user: IUser): any {
-    return {
-      user,
-    }
+    return this.db
+      .createQueryBuilder()
+      .select([
+        'u.avatarPath',
+        'p.headerPath',
+      ])
+      .from(User, 'u')
+      .where('u.id=:id', { id: user.id })
+      .innerJoin(Profile, 'p', 'p.id=u.id')
+      .getRawOne()
+      .then((res) => {
+        const currentUser = new User()
+        currentUser.email = user.email
+        currentUser.id = user.id
+        currentUser.name = user.name
+        currentUser.email = user.email
+        currentUser.avatarPath = res.u_avatarPath
+        currentUser.uid = user.uid
+        return {
+          user: currentUser,
+          headerURL: conf.assetsURL + '/' + res.p_headerPath,
+        }
+      })
   }
 
   @Patch('/password')

@@ -12,6 +12,7 @@ export interface IAppConfiguration extends IConfig {
   jwtSecret: string
   apiURL: string
   assetsURL: string
+  imageURL: string
   webURL: string
   functionURL: string
   gravatarURL: string
