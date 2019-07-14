@@ -17,7 +17,7 @@ import {
   CurrentUser,
   ForbiddenError,
   Get, HeaderParam, HttpError, JsonController, NotFoundError,
-  Param, Patch, Post, QueryParam, Redirect,
+  Param, Patch, Post, QueryParam, Redirect, Delete,
   UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository, SelectQueryBuilder} from 'typeorm'
@@ -146,6 +146,19 @@ export default class LevelController extends BaseController {
     delete level.id
     delete level.ownerId
     await this.levelRepo.update({ uid: id }, level)
+    return null
+  }
+
+  @Delete('/:id')
+  @Authorized()
+  public async deleteLevel(
+    @Param('id') id: string,
+    @CurrentUser() user: IUser,
+  ): Promise<null> {
+    const a = await this.levelRepo.delete({ uid: id, ownerId: user.id })
+    if (a.affected === 0) {
+      throw new NotFoundError()
+    }
     return null
   }
 
