@@ -65,7 +65,7 @@ export default class User implements IUser {
       const url = new URL('avatar/' + hash, config.gravatarURL)
       return url.href
     } else {
-      return null
+      return 'https://static.cytoid.io/img/avatar.jpg'
     }
   }
 

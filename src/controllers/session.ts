@@ -71,7 +71,7 @@ export default class UserController extends BaseController {
         currentUser.uid = user.uid
         return {
           user: currentUser,
-          headerURL: conf.assetsURL + '/' + res.p_headerPath,
+          headerURL: res.p_headerPath ? conf.assetsURL + '/' + res.p_headerPath : null,
         }
       })
   }

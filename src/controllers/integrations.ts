@@ -6,7 +6,7 @@ import {Get, JsonController} from 'routing-controllers'
 export default class {
   private cacheStore = new LRU({
     max: 10,
-    maxAge: 5 * 60 * 1000,
+    maxAge: 60 * 1000,
   })
   private twitterClient = axios.create({
     baseURL: 'https://api.twitter.com/1.1',
@@ -53,6 +53,23 @@ export default class {
       .then((res) => {
         this.cacheStore.set('disqus', res.data)
         return res.data
+      })
+  }
+
+  private discordClient = axios.create({
+    baseURL: 'https://discordapp.com/api',
+  })
+  @Get('/discord')
+  public discord() {
+    if (this.cacheStore.has('discord')) {
+      return this.cacheStore.get('discord')
+    }
+    return this.discordClient
+      .get('/guilds/362884768498712579/widget.json')
+      .then((res) => {
+        const val =  res.data.members.length
+        this.cacheStore.set('discord',  val)
+        return val
       })
   }
 }

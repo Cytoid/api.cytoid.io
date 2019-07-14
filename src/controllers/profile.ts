@@ -41,7 +41,7 @@ export default class ProfileController extends BaseController {
     if (!profile) {
       throw new NotFoundError()
     }
-    profile.headerURL = conf.assetsURL + '/' + profile.headerPath
+    profile.headerURL = profile.headerPath ? conf.assetsURL + '/' + profile.headerPath : null
     delete profile.user.id
     delete profile.headerPath
     if (!stats) {
@@ -121,7 +121,7 @@ group by grade;`, [uuid])
 SELECT avg(r.performance_rating * r.difficulty_rating) as rating
 FROM records_ratings r
 WHERE r."ownerId"=$1;`, [uuid])
-      .then((result) => result[0].rating)
+      .then((result) => result[0].rating || 0)
   }
 
   public exp(uuid: string) {
@@ -146,8 +146,8 @@ SELECT round(sum(sqrt(scores.score / 1000000.0) * scores.base)) as basic_exp,
        round(sum(chart_scores.score)) as level_exp
 FROM scores, chart_scores;`, [uuid])
       .then((result) => {
-        const basicExp = result[0].basic_exp
-        const levelExp = result[0].level_exp
+        const basicExp = result[0].basic_exp || 0
+        const levelExp = result[0].level_exp || 0
         const totalExp = basicExp + levelExp
         const currentLevel = Math.floor((Math.sqrt(6 * totalExp + 400) + 10) / 30)
         function levelToExp(levelNum: number) {
