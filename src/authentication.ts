@@ -8,6 +8,7 @@ import {getManager} from 'typeorm'
 import {PasswordValidity} from 'unihash'
 import conf from './conf'
 import User, {IUser} from './models/user'
+import eventEmitter from './events'
 
 const db = getManager()
 const JWTOptions = {
@@ -59,6 +60,7 @@ passport.serializeUser((user: User, done) => {
 })
 
 passport.deserializeUser((id: IUser, done) => {
+  eventEmitter.emit('user_activity', id)
   done(null, id)
 })
 

@@ -10,6 +10,7 @@ import conf from '../conf'
 import Profile from '../models/profile'
 import User, {IUser} from '../models/user'
 import BaseController from './base'
+import { redis } from '../db'
 
 const validator = new Validator()
 
@@ -31,6 +32,7 @@ export default class ProfileController extends BaseController {
     // Testing if the id is a uuid. Case insensitive.
     const user = await this.userRepo.findOne({
       where: validator.isUUID(id, '4') ? {id} : {uid: id},
+      select: ['id', 'uid', 'name', 'email', 'avatar', 'registrationDate'],
     })
     if (!user) {
       throw new NotFoundError()
@@ -56,6 +58,7 @@ export default class ProfileController extends BaseController {
       },
       levels: await this.levels(user.id),
       timeseries: await this.timeseries(user.id),
+      online: await this.online(user.id),
     }
   }
 
@@ -221,6 +224,11 @@ FROM (
          ORDER BY year, week
      ) as t
      WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`, [ uuid ])
+  }
+
+  public online(uuid: string) {
+    return redis.getAsync('onlinestatus:' + uuid)
+      .then((val) => val !== null)
   }
 
   @Put('/:id')
