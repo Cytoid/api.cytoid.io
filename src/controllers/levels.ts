@@ -371,7 +371,7 @@ export default class LevelController extends BaseController {
 WITH ratings AS (SELECT rating, "userId"
                  FROM level_ratings
                  WHERE "levelId" = (SELECT id FROM levels WHERE uid = $1))
-SELECT round(avg(rating)) AS average,
+SELECT avg(rating) AS average,
        count(*)           AS total,
        ${user ? '(SELECT rating from ratings where "userId" = $2),' : ''}
        array(SELECT coalesce(data.count, 0) AS rating
@@ -431,7 +431,7 @@ FROM ratings`,
         if (error.column === 'levelId'
         && error.table === 'level_ratings'
         && error.code === '23502') {
-          throw new BadRequestError('The specified level does not exist!')
+          throw new NotFoundError('The specified level does not exist!')
         }
         throw error
       })
@@ -572,6 +572,7 @@ FROM ratings`,
 
     const path = await this.db.createQueryBuilder(Level, 'l')
       .select('l.packagePath')
+      .where({ uid: levelId })
       .getOne()
       .then((a) => a.packagePath)
 

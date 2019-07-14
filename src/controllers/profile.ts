@@ -30,37 +30,38 @@ export default class ProfileController extends BaseController {
   @Get('/:id')
   public async getProfile(@Param('id') id: string, @QueryParam('stats') stats: boolean = false) {
     // Testing if the id is a uuid. Case insensitive.
-    const user = await this.userRepo.findOne({
-      where: validator.isUUID(id, '4') ? {id} : {uid: id},
-      select: ['id', 'uid', 'name', 'email', 'avatar', 'registrationDate'],
-    })
-    if (!user) {
+    const profile: any = await this.db
+      .createQueryBuilder(Profile, 'p')
+      .innerJoinAndSelect('p.user', 'u')
+      .addSelect([
+        'u.registrationDate',
+      ])
+      .where(validator.isUUID(id, '4') ? 'p.id=:id' : 'u.uid=:id', { id })
+      .getOne()
+    if (!profile) {
       throw new NotFoundError()
     }
-    const profile: any = await this.profileRepo.findOne({
-      where: {id: user.id},
-      relations: ['user'],
-    })
     profile.headerURL = conf.assetsURL + '/' + profile.headerPath
     delete profile.user.id
     delete profile.headerPath
     if (!stats) {
       return profile
     }
-    delete profile.id
+    const user = profile.user
+    delete profile.user
     return {
       user,
       profile,
-      rating: await this.personalRating(user.id),
-      grade: await this.gradeDistribution(user.id),
-      activities: await this.userActivity(user.id),
-      exp: await this.exp(user.id),
+      rating: await this.personalRating(profile.id),
+      grade: await this.gradeDistribution(profile.id),
+      activities: await this.userActivity(profile.id),
+      exp: await this.exp(profile.id),
       recents: {
-        ranks: await this.recentRanks(user.id),
+        ranks: await this.recentRanks(profile.id),
       },
-      levels: await this.levels(user.id),
-      timeseries: await this.timeseries(user.id),
-      online: await this.online(user.id),
+      levels: await this.levels(profile.id),
+      timeseries: await this.timeseries(profile.id),
+      online: await this.online(profile.id),
     }
   }
 
@@ -141,8 +142,8 @@ chart_scores AS (
  FROM scores
  GROUP BY scores.level
 )
-SELECT sum(sqrt(scores.score / 1000000.0) * scores.base) as basic_exp,
-       sum(chart_scores.score) as level_exp
+SELECT round(sum(sqrt(scores.score / 1000000.0) * scores.base)) as basic_exp,
+       round(sum(chart_scores.score)) as level_exp
 FROM scores, chart_scores;`, [uuid])
       .then((result) => {
         const basicExp = result[0].basic_exp
