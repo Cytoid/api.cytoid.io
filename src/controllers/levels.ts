@@ -533,11 +533,8 @@ FROM ratings`,
       .into(Record)
       .values({
         ownerId: user.id,
-        score: record.score,
-        accuracy: record.accuracy,
-        details: record.details,
-        mods: record.mods,
         chart: () => chartQuery.getQuery(),
+        ...record,
       })
       .setParameters(chartQuery.getParameters())
       .returning('"chartId", id')

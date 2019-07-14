@@ -61,6 +61,8 @@ export default class User implements IUser {
     } else if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
       const url = new URL('avatar/' + hash, config.gravatarURL)
+      url.searchParams.append('w', '512')
+      url.searchParams.append('h', '512')
       return url.href
     } else {
       return null

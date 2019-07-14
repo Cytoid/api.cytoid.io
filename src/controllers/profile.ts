@@ -132,11 +132,11 @@ WITH scores AS (
   AND charts.difficulty BETWEEN 1 AND 16
 ),
 chart_scores AS (
- SELECT max(pow(scores.score / 1000000, 2) * (scores.base * 1.5)) as score
+ SELECT max(pow(scores.score / 1000000.0, 2) * (scores.base * 1.5)) as score
  FROM scores
  GROUP BY scores.level
 )
-SELECT sum(sqrt(scores.score / 1000000) * scores.base) as basic_exp,
+SELECT sum(sqrt(scores.score / 1000000.0) * scores.base) as basic_exp,
        sum(chart_scores.score) as level_exp
 FROM scores, chart_scores;`, [uuid])
       .then((result) => {

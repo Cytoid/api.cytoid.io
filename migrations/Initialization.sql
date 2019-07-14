@@ -140,6 +140,7 @@ CREATE VIEW records_ratings AS (
            c.difficulty                            AS difficulty_rating
     FROM records r
     JOIN charts c ON r."chartId"=c.id
+    WHERE r.ranked=true
 );
 
 
