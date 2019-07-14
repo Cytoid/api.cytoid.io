@@ -3,7 +3,7 @@ import {
   Authorized, BadRequestError,
   CurrentUser, ForbiddenError, Get, HttpCode, InternalServerError, JsonController, NotFoundError,
   Param, Params,
-  Post, UseBefore,
+  Post, UseBefore, Body,
 } from 'routing-controllers'
 import {redis} from '../../db'
 import CaptchaMiddleware from '../../middlewares/captcha'
@@ -38,7 +38,7 @@ export interface IFileUploadHandler {
   uploadLinkTTL: number
   targetPath: string
   contentType?: string
-  callback?: (user: IUser, session: IFileUploadSessionData) => any
+  callback?: (user: IUser, session: IFileUploadSessionData, extra?: any) => any
 }
 
 const FileUploadHandlers: { [key: string]: IFileUploadHandler } = {
@@ -96,6 +96,7 @@ export default class FileController extends BaseController {
    * extract the metadata from the package, save it into the database, and return the metadata.
    * @param paths
    * @param user
+   * @param info
    */
   @Post(/\/(.+\/.+)/)
   @HttpCode(201)
@@ -103,6 +104,7 @@ export default class FileController extends BaseController {
   public async createFileCallback(
     @Params() paths: any,
     @CurrentUser() user: IUser,
+    @Body() info: any,
   ) {
     const path = paths['0']
     const redisKey = this.getRedisKey(path)
@@ -119,7 +121,7 @@ export default class FileController extends BaseController {
     await this.db.save(newFile, {transaction: false})
     const handler = FileUploadHandlers[sessionData.type]
     if (handler.callback) {
-      return handler.callback(user, sessionData)
+      return handler.callback(user, sessionData, info)
     }
   }
   private getRedisKey(path: string) {

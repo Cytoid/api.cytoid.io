@@ -14,7 +14,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
   uploadLinkTTL: 3600,
   targetPath: 'levels/packages',
   contentType: 'application/zip',
-  async callback(user: IUser, session: IFileUploadSessionData) {
+  async callback(user: IUser, session: IFileUploadSessionData, info: any) {
     const packagePath = session.path
     const bundlePath = 'levels/bundles/' + session.name
     const leveldata = await axios.post(conf.functionURL + '/resolve-level-files', {
@@ -34,12 +34,13 @@ const LevelUploadHandler: IFileUploadHandler =  {
 
     // Convert packageMeta into database models
     const level = new Level()
-    level.description = ''
-    level.published = false
-    level.tags = []
 
     if (!packageMeta.id) {
       throw new BadRequestError("The 'id' field is required in level.json")
+    }
+
+    if (info.replaceUID && info.replaceUID !== packageMeta.id) {
+      throw new BadRequestError(`Uploaded package ${level.uid} but requires ${info.replaceUID}`)
     }
     level.uid = packageMeta.id
     level.version = packageMeta.version || 1
@@ -99,15 +100,41 @@ const LevelUploadHandler: IFileUploadHandler =  {
     })
 
     return db.transaction(async (tr) => {
-      await tr.save(level.bundle)
-      await tr.save(level)
-        .catch((error) => {
-          if (error.constraint === 'LEVEL_UID_UNIQUE') {
-            throw new ForbiddenError('Level UID already exists.')
-          }
-          throw error
-        })
-      await tr.save(charts)
+      await tr.insert(File, level.bundle)
+      if (info.replaceUID) {
+        level.id = await tr
+          .createQueryBuilder(Level, 'l')
+          .update()
+          .set(level)
+          .where({ uid: level.uid })
+          .returning('id')
+          .execute()
+          .then((res) => res.raw[0].id)
+        await tr.createQueryBuilder(Chart, 'c')
+          .insert()
+          .values(charts)
+          .onConflict('("levelId", "type") DO UPDATE SET ' +
+            'difficulty=EXCLUDED.difficulty,' +
+            'name=EXCLUDED.name,' +
+            '"notesCount"=EXCLUDED."notesCount",' +
+            'checksum=EXCLUDED.checksum')
+          .execute()
+        await tr.createQueryBuilder()
+          .delete()
+          .from(Chart)
+          .where({ levelId: level.id })
+          .andWhere('type NOT IN (:...ids)', { ids: charts.map((c) => c.type)})
+          .execute()
+      } else {
+        await tr.insert(Level, level)
+          .catch((error) => {
+            if (error.constraint === 'LEVEL_UID_UNIQUE') {
+              throw new ForbiddenError(`Level ${level.uid} already exists.`)
+            }
+            throw error
+          })
+        await tr.insert(Chart, charts)
+      }
       return level
     })
       .then((result: any) => {

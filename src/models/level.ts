@@ -34,6 +34,7 @@ export class Level {
   @PrimaryGeneratedColumn()
   public id: number
 
+  @Column('integer')
   public version: number
 
   @Column({ unique: true })
@@ -126,7 +127,10 @@ export class Chart {
   public difficulty: number
 
   @ManyToOne(() => Level, (level) => level.charts, { onDelete: 'CASCADE', nullable: true })
-  public level?: Level
+  public level: Level
+
+  @Column('integer')
+  public levelId: number
 
   @Column({ nullable: false })
   public notesCount: number

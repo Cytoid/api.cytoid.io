@@ -36,7 +36,7 @@ CREATE TABLE "levels" (
   "title"         varchar        NOT NULL,
   "metadata"      jsonb          NOT NULL,
   "duration"      real           NOT NULL,
-  "description"   text           NOT NULL,
+  "description"   text           NOT NULL DEFAULT '',
   "published"     boolean        DEFAULT false,
   "censored"      varchar,
   "tags"          varchar[]      NOT NULL DEFAULT ARRAY[]::varchar[],
@@ -53,7 +53,7 @@ CREATE TABLE "charts" (
   "name"       varchar,
   "difficulty" smallint NOT NULL,
   "type"       varchar  NOT NULL,
-  "levelId"    integer REFERENCES "levels" ("id") ON DELETE CASCADE,
+  "levelId"    integer NOT NULL REFERENCES "levels" ("id") ON DELETE CASCADE,
   "notesCount" integer NOT NULL,
   "checksum"   varchar,
   UNIQUE ("levelId", "type")
