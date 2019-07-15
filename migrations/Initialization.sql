@@ -77,14 +77,16 @@ CREATE TABLE "records" (
   "chartId"  integer        NOT NULL REFERENCES "charts" ("id") ON DELETE CASCADE,
   "ownerId"  uuid           NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE
 );
-CREATE INDEX records_chart ON records USING hash ("chartId");
+
+CREATE INDEX records_chart ON records ("chartId");
+CREATE INDEX records_owner ON records ("ownerId");
 
 CREATE TABLE "level_downloads" (
   "id"       SERIAL    NOT NULL PRIMARY KEY,
   "userId"   uuid      NOT NULL REFERENCES "users" ("id")  ON DELETE CASCADE,
   "levelId"  integer   NOT NULL REFERENCES "levels" ("id") ON DELETE CASCADE,
   "date"     TIMESTAMP NOT NULL DEFAULT now(),
-  "count"    smallint  NOT NULL DEFAULT 0,
+  "count"    smallint  NOT NULL DEFAULT 1,
   UNIQUE ("levelId", "userId")
 );
 

@@ -93,11 +93,11 @@ group by grade;`, [uuid])
   public userActivity(uuid: string) {
     return this.db.createQueryBuilder()
       .select([
-        'count(records) as total_ranked_plays',
+        'count(records) filter (WHERE records.ranked=true) as total_ranked_plays',
         'sum(chart."notesCount") as cleared_notes',
         "max((records.details -> 'maxCombo')::integer) as max_combo",
         'avg(records.accuracy) as average_ranked_accuracy',
-        'sum(records.score) as total_ranked_score',
+        'sum(records.score) filter (WHERE records.ranked=true) as total_ranked_score',
         'sum(level.duration) as total_play_time',
       ])
       .from('records', 'records')
@@ -138,13 +138,14 @@ WITH scores AS (
   AND charts.difficulty BETWEEN 1 AND 16
 ),
 chart_scores AS (
- SELECT max(pow(scores.score / 1000000.0, 2) * (scores.base * 1.5)) as score
+ SELECT max(pow(scores.score / 1000000.0, 2) * (scores.base * 1.5)) as level_score,
+        sum(sqrt(scores.score / 1000000.0) * scores.base) as level_total_basic_exp
  FROM scores
  GROUP BY scores.level
 )
-SELECT round(sum(sqrt(scores.score / 1000000.0) * scores.base)) as basic_exp,
-       round(sum(chart_scores.score)) as level_exp
-FROM scores, chart_scores;`, [uuid])
+SELECT round(sum(level_total_basic_exp)) as basic_exp,
+       round(sum(chart_scores.level_score)) as level_exp
+FROM chart_scores;`, [uuid])
       .then((result) => {
         const basicExp = result[0].basic_exp || 0
         const levelExp = result[0].level_exp || 0

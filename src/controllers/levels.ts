@@ -423,7 +423,7 @@ FROM ratings`,
         userId: user.id,
         rating,
       })
-      .onConflict('ON CONSTRAINT "LEVEL_RATING_UNIQUE" DO UPDATE SET "rating" = :rating')
+      .onConflict('ON CONSTRAINT "level_ratings_levelId_userId_key" DO UPDATE SET "rating" = :rating')
       .setParameter('rating', rating)
       .setParameters(levelIdQuery.getParameters())
       .execute()
