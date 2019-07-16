@@ -5,15 +5,23 @@ import logger from './logger'
 const port: number = conf.get('port')
 const host: string = conf.get('host')
 import {createServer} from 'http2'
+import { connectDatabase, connectRedis } from './db'
 
-if (process.env.HTTP2) {
-  createServer(app.callback())
-    .listen(port, () => {
-
-      logger.debug('HTTP2 Listening on port: ' + port)
-    })
-} else {
-  app.listen(port, () => {
-    logger.debug('HTTP1.1 Listening on port: ' + port)
+function start() {
+  return new Promise((resolve, reject) => {
+    if (process.env.HTTP2) {
+      createServer(app.callback())
+        .listen(port, () => {
+          logger.debug('HTTP2 Listening on port: ' + port)
+          resolve()
+        })
+    } else {
+      app.listen(port, () => {
+        logger.debug('HTTP1.1 Listening on port: ' + port)
+        resolve()
+      })
+    }
   })
 }
+
+Promise.all([connectDatabase, connectRedis]).then(start)

@@ -38,6 +38,7 @@
     "@types/passport": "^1.0.0",
     "@types/passport-jwt": "^3.0.1",
     "@types/passport-local": "^1.0.33",
+    "@types/pg": "^7.4.14",
     "@types/redis": "^2.8.10",
     "jest": "^24.1.0",
     "ts-jest": "^24.0.0",

@@ -66,7 +66,7 @@ export class Level {
   @Column('varchar',  {nullable: true})
   public censored?: string
 
-  @Column('varchar', { array: true })
+  @Column('citext', { array: true })
   public tags: string[]
 
   @Column('varchar', { array: true })

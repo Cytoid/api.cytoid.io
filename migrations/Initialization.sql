@@ -39,7 +39,7 @@ CREATE TABLE "levels" (
   "description"   text           NOT NULL DEFAULT '',
   "published"     boolean        DEFAULT false,
   "censored"      varchar,
-  "tags"          varchar[]      NOT NULL DEFAULT ARRAY[]::varchar[],
+  "tags"          citext[]       NOT NULL DEFAULT ARRAY[]::citext[],
   "category"      varchar[]      NOT NULL DEFAULT ARRAY[]::varchar[],
   "date_created"  TIMESTAMP      NOT NULL DEFAULT now(),
   "date_modified" TIMESTAMP      NOT NULL DEFAULT now(),
@@ -48,6 +48,8 @@ CREATE TABLE "levels" (
   "bundlePath"    varchar REFERENCES "files" ("path") ON DELETE SET NULL,
   "size"          integer        NOT NULL
 );
+CREATE INDEX levels_tag ON levels USING GIN ("tags");
+
 CREATE TABLE "charts" (
   "id"         SERIAL   NOT NULL PRIMARY KEY,
   "name"       varchar,
@@ -88,20 +90,6 @@ CREATE TABLE "level_downloads" (
   "date"     TIMESTAMP NOT NULL DEFAULT now(),
   "count"    smallint  NOT NULL DEFAULT 1,
   UNIQUE ("levelId", "userId")
-);
-
-
-CREATE TABLE "posts" (
-  "id"            SERIAL    NOT NULL PRIMARY KEY,
-  "slug"          varchar   NOT NULL UNIQUE,
-  "ownerId"       uuid      REFERENCES "users" ("id") ON DELETE SET NULL,
-  "title"         varchar   NOT NULL,
-  "subtitle"      varchar   NOT NULL,
-  "tags"          varchar[] NOT NULL DEFAULT ARRAY[]::varchar[],
-  "date_created"  TIMESTAMP NOT NULL DEFAULT now(),
-  "content"       text      NOT NULL,
-  "metadata"      jsonb     NOT NULL,
-  "headerPath"    varchar   REFERENCES "files"("path") ON DELETE SET NULL
 );
 
 CREATE MATERIALIZED VIEW tags_search AS

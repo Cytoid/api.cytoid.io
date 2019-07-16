@@ -68,7 +68,6 @@ export default class LevelController extends BaseController {
     bundlePath: 'levels/bundles/',
   }
 
-  public levelsPerPage = 18
   private levelRepo = getRepository(Level)
   private chartRepo = getRepository(Chart)
 
@@ -173,6 +172,8 @@ export default class LevelController extends BaseController {
     const theSortOrder: 'DESC' | 'ASC' = (sortOrder.toUpperCase() === 'DESC') ? 'DESC' : 'ASC'
     if (pageLimit > 30) {
       pageLimit = 30
+    } else if (pageLimit < 0) {
+      pageLimit = 0
     }
     if (pageNum < 0 || !Number.isInteger(pageNum)) {
       throw new BadRequestError('Page has to be a positive integer!')
@@ -313,11 +314,15 @@ export default class LevelController extends BaseController {
       ctx.set('Cache-Control', 'private')
       query = query.addSelect('levels.published')
     }
-    return Promise.all([query.getRawAndEntities(), query.getCount()])
-      .then(([{entities, raw}, count]) => {
-        ctx.set('X-Total-Page', Math.floor(count / this.levelsPerPage).toString())
-        ctx.set('X-Total-Entries', count.toString())
-        ctx.set('X-Current-Page', pageNum.toString())
+    const count = await query.getCount()
+    ctx.set('X-Total-Entries', count.toString())
+    if (pageLimit === 0) {
+      return null
+    }
+    ctx.set('X-Total-Page', Math.floor(count / pageLimit).toString())
+    ctx.set('X-Current-Page', pageNum.toString())
+    return query.getRawAndEntities()
+      .then(({entities, raw}) => {
         return entities.map((level: any, index) => {
           const rawRecord = raw[index]
           level.bundle = level.bundle.toPlain()
