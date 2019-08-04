@@ -1,16 +1,16 @@
 import { IsDateString, IsOptional, IsString, Validator } from 'class-validator'
 import {
-  Authorized, Body,
+  Authorized, BadRequestError, Body,
   CurrentUser, Get, JsonController,
   NotFoundError, Param, Put, QueryParam, UnauthorizedError,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {level} from 'winston'
 import conf from '../conf'
+import { redis } from '../db'
 import Profile from '../models/profile'
 import User, {IUser} from '../models/user'
 import BaseController from './base'
-import { redis } from '../db'
 
 const validator = new Validator()
 
@@ -28,7 +28,7 @@ export default class ProfileController extends BaseController {
   private userRepo = getRepository(User)
   private profileRepo = getRepository(Profile)
   @Get('/:id')
-  public async getProfile(@Param('id') id: string, @QueryParam('stats') stats: boolean = false) {
+  public async getProfile(@Param('id') id: string) {
     // Testing if the id is a uuid. Case insensitive.
     const profile: any = await this.db
       .createQueryBuilder(Profile, 'p')
@@ -44,9 +44,12 @@ export default class ProfileController extends BaseController {
     profile.headerURL = profile.headerPath ? conf.assetsURL + '/' + profile.headerPath : null
     delete profile.user.id
     delete profile.headerPath
-    if (!stats) {
-      return profile
-    }
+    return profile
+  }
+
+  @Get('/:id/full')
+  public async getProfileFull(@Param('id') id: string) {
+    const profile = await this.getProfile(id)
     const user = profile.user
     delete profile.user
     return {
@@ -65,7 +68,11 @@ export default class ProfileController extends BaseController {
     }
   }
 
-  public gradeDistribution(uuid: string) {
+  @Get('/:id/grades')
+  public gradeDistribution(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.query(`SELECT case
 when records.score >= 1000000 then 'MAX'
 when records.score >= 999500 then 'SSS'
@@ -84,13 +91,17 @@ group by grade;`, [uuid])
     .then((gradeObjs) => {
       const grades: any = {}
       for (const grade of gradeObjs) {
-        grades[grade.grade] = grade.count
+        grades[grade.grade] = parseInt(grade.count, 10)
       }
       return grades
     })
   }
 
-  public userActivity(uuid: string) {
+  @Get('/:id/activity')
+  public userActivity(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.createQueryBuilder()
       .select([
         'count(records) filter (WHERE records.ranked=true) as total_ranked_plays',
@@ -111,20 +122,26 @@ group by grade;`, [uuid])
         activities.cleared_notes = parseInt(activities.cleared_notes, 10)
         activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
         activities.total_ranked_score = parseInt(activities.total_ranked_score, 10)
+        activities.average_ranked_accuracy = parseFloat(activities.average_ranked_accuracy)
         return activities
       })
 
   }
 
-  public personalRating(uuid: string) {
-    return this.db.query(`\
-SELECT avg(r.performance_rating * r.difficulty_rating) as rating
-FROM records_ratings r
-WHERE r."ownerId"=$1;`, [uuid])
-      .then((result) => result[0].rating || 0)
+  @Get('/:id/rating')
+  public personalRating(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
+    return this.db.query('select user_rating($1)', [ uuid ])
+      .then((result) => parseFloat(result[0].user_rating))
   }
 
-  public exp(uuid: string) {
+  @Get('/:id/exp')
+  public exp(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.query(`
 WITH scores AS (
  SELECT charts."notesCount" * (charts.difficulty / 15) +
@@ -165,7 +182,11 @@ FROM chart_scores;`, [uuid])
       })
   }
 
-  public recentRanks(uuid: string) {
+  @Get('/:id/ranks')
+  public recentRanks(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.query(`
 SELECT records.score, records.accuracy, records.date,
 charts.difficulty, charts.type, charts."notesCount", charts.name as "chartName",
@@ -191,12 +212,17 @@ FROM (
 ORDER BY records.date DESC LIMIT 10;`, [uuid])
       .then((results) => results.map((result: any) => {
         result.backgroundURL = conf.assetsURL + '/' + result.background_path
+        result.accuracy = parseFloat(result.accuracy)
         delete result.background_path
         return result
       }))
   }
 
-  public levels(id: string) {
+  @Get('/:id/levels')
+  public levels(@Param('id') id: string) {
+    if (!validator.isUUID(id, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.createQueryBuilder()
       .select([
         "count(levels.id) filter (WHERE 'featured'=ANY(levels.category)) as featured_levels_count",
@@ -211,23 +237,36 @@ ORDER BY records.date DESC LIMIT 10;`, [uuid])
       }))
   }
 
-  public timeseries(uuid: string) {
+  @Get('/:id/timeseries')
+  public timeseries(@Param('id') uuid: string) {
+    if (!validator.isUUID(uuid, '4')) {
+      throw new BadRequestError('not uuid')
+    }
     return this.db.query(`\
 SELECT (sum(t.rating * t.count) OVER w) / (sum(t.count) OVER w) as accu_rating,
        (sum(t.accuracy * t.count) OVER w) / (sum(t.count) OVER w) as accu_accuracy,
        t.*
 FROM (
-         SELECT extract('week' from r.date) as week,
-                extract('isoyear' from r.date) as year,
-                avg(performance_rating * difficulty_rating) as rating,
+         SELECT extract(week from r.date) as week,
+                extract(isoyear from r.date) as year,
                 avg(accuracy) as accuracy,
+                avg(rating) as rating,
                 count(*)::integer
-         FROM records_ratings r
+         FROM records r
          WHERE r."ownerId" = $1
          GROUP BY year, week
          ORDER BY year, week
      ) as t
      WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`, [ uuid ])
+      .then((rows) => {
+        for (const row of rows) {
+          row.accu_rating = parseFloat(row.accu_rating)
+          row.accu_accuracy = parseFloat(row.accu_accuracy)
+          row.accuracy = parseFloat(row.accuracy)
+          row.rating = parseFloat(row.rating)
+        }
+        return rows
+      })
   }
 
   public online(uuid: string) {

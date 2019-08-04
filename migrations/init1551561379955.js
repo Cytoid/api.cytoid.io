@@ -2,9 +2,17 @@ const fs = require('fs').promises;
 
 class init1551561379955 {
   async up(queryRunner) {
-    const filehandle = await fs.open('migrations/Initialization.sql', 'r');
-    const sqlQueries = await filehandle.readFile('utf-8');
-    await queryRunner.query(sqlQueries);
+    await fs.open('migrations/Initialization.sql', 'r')
+      .then(filehandle => filehandle.readFile('utf-8'))
+      .then(content => queryRunner.query(content));
+
+    await fs.open('migrations/Search.sql', 'r')
+      .then(filehandle => filehandle.readFile('utf-8'))
+      .then(content => queryRunner.query(content));
+
+    await fs.open('migrations/Ratings.sql', 'r')
+      .then(filehandle => filehandle.readFile('utf-8'))
+      .then(content => queryRunner.query(content));
   }
 
   async down(queryRunner) {

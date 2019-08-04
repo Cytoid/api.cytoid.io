@@ -49,6 +49,9 @@ CREATE TABLE "levels" (
   "size"          integer        NOT NULL
 );
 CREATE INDEX levels_tag ON levels USING GIN ("tags");
+CREATE INDEX levels_date_created ON levels ("date_created");
+CREATE INDEX levels_date_modified ON levels ("date_modified");
+CREATE INDEX levels_duration ON levels ("duration");
 
 CREATE TABLE "charts" (
   "id"         SERIAL   NOT NULL PRIMARY KEY,
@@ -72,7 +75,8 @@ CREATE TABLE "records" (
   "id"       SERIAL         NOT NULL PRIMARY KEY,
   "date"     TIMESTAMP      NOT NULL DEFAULT now(),
   "score"    integer        NOT NULL,
-  "accuracy" real           NOT NULL,
+  "accuracy" numeric(9,8)   NOT NULL,
+  "rating"   numeric(10,8)  NOT NULL,
   "details"  jsonb          NOT NULL,
   "mods"     varchar(32) [] NOT NULL DEFAULT ARRAY[]::varchar[],
   "ranked"   boolean        NOT NULL,
@@ -91,56 +95,3 @@ CREATE TABLE "level_downloads" (
   "count"    smallint  NOT NULL DEFAULT 1,
   UNIQUE ("levelId", "userId")
 );
-
-CREATE MATERIALIZED VIEW tags_search AS
-    SELECT tag,
-           count(tag),
-           to_tsvector(tag) as tsv
-    FROM (SELECT lower(unnest(tags)) AS tag FROM levels) AS tags
-    GROUP BY tag ORDER BY count DESC;
-
-CREATE INDEX tags_search_tsv ON tags_search USING gin(tsv);
-
-CREATE MATERIALIZED VIEW levels_search AS
-SELECT setweight(to_tsvector(levels.uid), 'C') ||
-       setweight(to_tsvector(title), 'D') ||
-       setweight(to_tsvector(description), 'A') ||
-       setweight(to_tsvector(array_to_string(tags, ',', '*')), 'D') ||
-       setweight(to_tsvector(coalesce(users.uid, '')), 'B') ||
-       setweight(to_tsvector(coalesce(users.name, '')), 'B') as tsv,
-       levels.id,
-       levels.title,
-       levels.uid
-FROM levels
-JOIN users on levels."ownerId" = users.id
-WHERE published=true;
-
-CREATE INDEX levels_search_tsv ON levels_search USING gin(tsv);
-
-CREATE VIEW records_ratings AS (
-    SELECT r.id, r.date,
-           r.accuracy,
-           r."ownerId"                             AS "ownerId",
-           CASE
-               WHEN r.accuracy < 0.7 THEN ((|/ (r.accuracy / 0.7)) * 0.5)
-               WHEN r.accuracy < 0.97 THEN 0.7 - 0.2 * log((1.0 - r.accuracy) / 0.03)
-               WHEN r.accuracy < 0.997 THEN 0.7 - 0.16 * log((1.0 - r.accuracy) / 0.03)
-               WHEN r.accuracy < 0.9997 THEN 0.78 - 0.08 * log((1.0 - r.accuracy) / 0.03)
-               ELSE r.accuracy * 200.0 - 199.0 END AS performance_rating,
-           c.difficulty                            AS difficulty_rating
-    FROM records r
-    JOIN charts c ON r."chartId"=c.id
-    WHERE r.ranked=true
-);
-
-
-CREATE MATERIALIZED VIEW leaderboard AS (
-    SELECT *, rank() OVER (ORDER BY rating DESC) AS ranking
-    FROM (
-        SELECT avg(performance_rating * difficulty_rating) AS rating,
-               "ownerId"
-        FROM records_ratings
-        GROUP BY "ownerId"
-    ) as lb
-);
-

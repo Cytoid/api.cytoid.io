@@ -4,14 +4,11 @@ import User from './user'
 @Entity('leaderboard')
 export default class LeaderboardEntry {
   @PrimaryColumn()
-  public ownerId: string
+  public id: string
 
-  @OneToOne(() => User, { onDelete: 'SET NULL', nullable: true })
-  @JoinColumn({ name: 'ownerId' })
+  @OneToOne(() => User, { onDelete: 'CASCADE', nullable: false })
+  @JoinColumn({ name: 'id' })
   public owner?: User
-
-  @Column()
-  public ranking: number
 
   @Column()
   public rating: number
