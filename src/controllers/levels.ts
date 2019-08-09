@@ -444,6 +444,19 @@ FROM ratings`,
     return this.getRatings(id, user)
   }
 
+  @Get('/:id/statistics/timeseries')
+  public getStatistics(@Param('id') id: number) {
+    if (!id) {
+      throw new BadRequestError()
+    }
+    return this.db.query(`\
+      SELECT count(*)::integer, extract(week from records.date) as week, extract(year from date) as year
+      FROM records
+      WHERE "chartId" IN (SELECT id FROM charts WHERE "levelId" = $1)
+      GROUP BY year, week
+      ORDER BY year, week`, [id])
+  }
+
   @Get('/:id/charts/:chartType/')
   public getChart(@Param('id') id: string, @Param('chartType') chartType: string) {
     return this.db.createQueryBuilder()

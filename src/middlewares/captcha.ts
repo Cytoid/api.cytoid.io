@@ -32,6 +32,7 @@ export default function createCaptchaValidator(action: string) {
           return next()
         })
     } else {
+      const SocksProxyAgent = require('socks-proxy-agent')
       return axios({
         url: 'https://www.google.com/recaptcha/api/siteverify',
         method: 'post',
@@ -40,8 +41,10 @@ export default function createCaptchaValidator(action: string) {
           secret: conf.captchaKey,
           remoteip: getIP(context),
         },
+        httpsAgent: new SocksProxyAgent('socks://127.0.0.1:1080'),
       })
         .then((res) => {
+          console.log(res.data)
           context.assert(res.data.success, 403, 'captcha validation failed' + ('error-codes' in res.data) ?
             res.data['error-codes'] :
             'Unknown')
