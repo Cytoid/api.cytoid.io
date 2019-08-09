@@ -1,6 +1,6 @@
 import axios from 'axios'
 import * as LRU from 'lru-cache'
-import {Get, JsonController} from 'routing-controllers'
+import {HttpError, Get, JsonController} from 'routing-controllers'
 
 @JsonController('/integrations')
 export default class {
@@ -18,7 +18,7 @@ export default class {
   @Get('/twitter')
   public twitter() {
     if (this.cacheStore.has('twitter')) {
-      return this.cacheStore.get('twitter')
+      return this.cacheStore.get('twitter_latest')
     }
     return this.twitterClient.get('/statuses/user_timeline.json', {
       params: {
@@ -28,9 +28,11 @@ export default class {
       },
     })
       .then((res) => {
-        this.cacheStore.set('twitter', res.data)
-        return res.data
+        const latestTweetId = res.data[0].id_str
+        this.cacheStore.set('twitter_latest', latestTweetId)
+        return latestTweetId
       })
+      .catch((error) => Promise.reject(new HttpError(502, error.message)))
   }
 
   private disqusClient = axios.create({
@@ -54,6 +56,7 @@ export default class {
         this.cacheStore.set('disqus', res.data)
         return res.data
       })
+      .catch((error) => Promise.reject(new HttpError(502, error.message)))
   }
 
   private discordClient = axios.create({
@@ -71,5 +74,6 @@ export default class {
         this.cacheStore.set('discord',  val)
         return val
       })
+      .catch((error) => Promise.reject(new HttpError(502, error.message)))
   }
 }

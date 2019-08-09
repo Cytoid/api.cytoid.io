@@ -26,6 +26,7 @@ export interface IAppConfiguration extends IConfig {
     },
   },
   captchaKey: string,
+  tencentCaptchaKey: string,
   cdnKey: string,
 }
 
