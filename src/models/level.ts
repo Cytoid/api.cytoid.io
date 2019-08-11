@@ -1,4 +1,4 @@
-import { Exclude, Type } from 'class-transformer'
+import { Exclude, Transform, Type } from 'class-transformer'
 import {
   Check,
   Column,
@@ -85,6 +85,7 @@ export class Level {
   @UpdateDateColumn({ name: 'date_modified' })
   public modificationDate: Date
 
+  @Exclude()
   @Column({nullable: true})
   public packagePath?: string
 
@@ -94,6 +95,7 @@ export class Level {
 
   @Type(() => File)
   @ManyToOne(() => File, { onDelete: 'SET NULL', nullable: true })
+  @Transform((b) => File.prototype.toPlain.call(b), { toPlainOnly: true })
   public bundle?: ILevelBundle
 
   @Type(() => Chart)

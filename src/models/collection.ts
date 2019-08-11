@@ -1,13 +1,14 @@
-import {Type} from 'class-transformer'
+import { Type, Exclude, Expose } from 'class-transformer'
 import {
   Column, CreateDateColumn,
   Entity,
   JoinTable, ManyToMany,
-  ManyToOne, PrimaryColumn, UpdateDateColumn
+  ManyToOne, PrimaryColumn, UpdateDateColumn,
 } from 'typeorm'
 import File from './file'
 import { Level } from './level'
 import User from './user'
+import config from '../conf'
 
 @Entity('collections')
 export default class Collection {
@@ -19,10 +20,19 @@ export default class Collection {
 
   @Type(() => File)
   @ManyToOne(() => File)
-  public header: File
+  public cover: File
 
   @Column()
-  public headerPath: string
+  @Exclude()
+  public coverPath: string
+
+  @Expose()
+  public get coverURL(): string {
+    if (!this.coverPath) {
+      return undefined
+    }
+    return config.assetsURL + '/' + this.coverPath
+  }
 
   @Column()
   public title: string
@@ -34,6 +44,7 @@ export default class Collection {
   public description: string
 
   @Column()
+  @Exclude()
   public ownerId: string
 
   @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: false })

@@ -1,6 +1,7 @@
 module.exports = {
   host: 'localhost',
   port: 3000,
+  secret: 'keyboard cat',
   postgres: {
     type: 'postgres',
     url: process.env.DATABASE_URL || 'postgresql://cytoid:cytoid@localhost:5432/cytoid',
@@ -13,6 +14,7 @@ module.exports = {
   webURL: 'http://localhost:8080',
   functionURL: 'http://localhost:5000',
   gravatarURL: 'https://www.gravatar.com/avatar',
+  imageURL: 'https://images.cytoid.io',
   email: {
     secretKey: 'sendgrid secret',
     sender: {

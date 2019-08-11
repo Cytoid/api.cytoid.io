@@ -100,7 +100,7 @@ CREATE TABLE collections
 (
     "id"            SERIAL    NOT NULL PRIMARY KEY,
     "uid"           varchar   NOT NULL UNIQUE,
-    "headerPath"    varchar   REFERENCES files ("path"),
+    "coverPath"     varchar   REFERENCES files ("path"),
     "title"         varchar   NOT NULL DEFAULT '',
     "brief"         varchar   NOT NULL DEFAULT '',
     "description"   text      NOT NULL DEFAULT '',

@@ -92,10 +92,8 @@ export default class LevelController extends BaseController {
         level.charts.sort((a, b) => a.difficulty - b.difficulty)
 
         const result: any = level
-        result.bundle = level.bundle.toPlain()
         result.packageSize = result.package.size
         delete result.package
-        delete result.packagePath
         delete result.metadata.raw
 
         if (user && (user.id === level.ownerId)) {
@@ -195,10 +193,7 @@ export default class LevelController extends BaseController {
         'levels.title',
         'levels.id',
         'levels.uid',
-        "levels.metadata->'artist'->>'name' as artist",
-        "levels.metadata->'illustrator'->>'name' as illustrator",
-        "levels.metadata->'charter'->>'name' as charter",
-        "levels.metadata->>'title_localized' as title_localized",
+        'levels.metadata',
         'bundle.content',
         'bundle.path',
         'levels.modificationDate',
@@ -325,17 +320,10 @@ export default class LevelController extends BaseController {
       .then(({entities, raw}) => {
         return entities.map((level: any, index) => {
           const rawRecord = raw[index]
-          level.bundle = level.bundle.toPlain()
           level.charts = rawRecord.charts
           level.rating = parseFloat(rawRecord.rating) || null
           level.plays = parseInt(rawRecord.plays, 10) // Optional
           level.downloads = parseInt(rawRecord.downloads, 10) // Optional
-          level.metadata = {
-            artist: rawRecord.artist,
-            illustrator: rawRecord.illustrator,
-            charter: rawRecord.charter,
-            title_localized: rawRecord.title_localized,
-          }
           return level
         })
       })
