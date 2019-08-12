@@ -13,8 +13,9 @@ const app = new Koa()
 import * as bodyParser from 'koa-bodyparser'
 app.use(bodyParser())
 
-import passport, {authorizationChecker, currentUserChecker} from './authentication'
+import passport, {authorizationChecker, currentUserChecker, externalAuthentication} from './authentication'
 app.use(passport.initialize())
+externalAuthentication(app)
 
 app.keys = [conf.secret]
 
@@ -30,7 +31,7 @@ app.use(session({
   signed: true, /** (boolean) signed or not (default true) */
   rolling: false, /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (default is false) */
   renew: true, /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
-  domain: 'localhost',
+  domain: 'cytoid.io',
 }, app))
 
 useKoaServer(app, {

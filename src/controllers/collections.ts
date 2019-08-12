@@ -59,6 +59,9 @@ export default class Collections extends BaseController {
       relations: ['levels', 'owner', 'levels.bundle', 'levels.owner'],
     })
       .then(([result]) => {
+        if (!result) {
+          return undefined
+        }
         for (const level of result.levels) {
           delete level.metadata.raw
         }

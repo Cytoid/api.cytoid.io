@@ -1,15 +1,17 @@
+import {plainToClass} from 'class-transformer'
 import * as jwt from 'jsonwebtoken'
-import {Middleware} from 'koa'
+import * as Koa from 'koa'
 import * as passport from 'koa-passport'
+import * as Router from 'koa-router'
+import { Strategy as FacebookStrategy } from 'passport-facebook'
 import {ExtractJwt, Strategy as JwtStrategy} from 'passport-jwt'
 import {Strategy as LocalStrategy} from 'passport-local'
 import {Action} from 'routing-controllers'
 import {getManager} from 'typeorm'
 import {PasswordValidity} from 'unihash'
 import conf from './conf'
-import User, {IUser} from './models/user'
 import eventEmitter from './events'
-import {plainToClass} from 'class-transformer'
+import User, {IUser} from './models/user'
 
 const db = getManager()
 const JWTOptions = {
@@ -23,6 +25,18 @@ passport.use(
     return done(null, plainToClass(User, payload.sub))
   }),
 )
+
+passport.use(new FacebookStrategy({
+    clientID: '329872044311027',
+    clientSecret: 'ba062ce1ffb2a84a279e0c1e37a64004',
+    callbackURL: conf.apiURL + '/session/external/facebook/callback',
+  },
+  (accessToken, refreshToken, profile, callback) => {
+    console.log(profile)
+    callback(false)
+  },
+))
+
 export function signJWT(payload: any): Promise<string> {
   return new Promise((resolve, reject) => {
     jwt.sign({sub: payload}, JWTOptions.secretOrKey, {
@@ -71,7 +85,7 @@ export async function currentUserChecker(action: Action): Promise<IUser> {
   return action.context.state.user
 }
 
-const authorizationCheckers: Middleware[] = [
+const authorizationCheckers: Koa.Middleware[] = [
   passport.session(),
   passport.authenticate('jwt', {session: false}),
 ]
@@ -94,4 +108,19 @@ export function OptionalAuthenticate(context: any, next: (err?: Error) => Promis
   }
   context.status = 200
   return next()
+}
+
+export function externalAuthentication(app: Koa) {
+  const router = new Router({
+    prefix: '/session/external',
+  })
+  router
+    .get('/facebook', passport.authenticate('facebook'))
+    .get(
+      '/facebook/callback',
+      passport.authenticate('facebook'),
+      (ctx, next) => {
+        console.log('asdfasdf')
+      })
+  app.use(router.routes()).use(router.allowedMethods())
 }
