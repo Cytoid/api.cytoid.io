@@ -9,17 +9,18 @@ import {PasswordValidity} from 'unihash'
 import conf from './conf'
 import User, {IUser} from './models/user'
 import eventEmitter from './events'
+import {plainToClass} from 'class-transformer'
 
 const db = getManager()
 const JWTOptions = {
-  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('JWT'),
   secretOrKey: conf.jwtSecret,
   issuer: 'cytoid.io',
   audience: 'cytoid.io',
 }
 passport.use(
-  new JwtStrategy(JWTOptions, async (jwt_payload, done) => {
-    return done(null, jwt_payload.sub)
+  new JwtStrategy(JWTOptions, async (payload, done) => {
+    return done(null, plainToClass(User, payload.sub))
   }),
 )
 export function signJWT(payload: any): Promise<string> {
@@ -27,7 +28,7 @@ export function signJWT(payload: any): Promise<string> {
     jwt.sign({sub: payload}, JWTOptions.secretOrKey, {
       audience: JWTOptions.audience,
       issuer: JWTOptions.issuer,
-      expiresIn: '10d',
+      expiresIn: '365d',
     }, (err: Error, encoded: string) => {
       if (err) { reject(err) } else { resolve(encoded) }
     })

@@ -32,7 +32,7 @@ export default class UserController extends BaseController {
   private userRepo = getRepository(User)
 
   @Post('/')
-  @UseBefore(authenticate('local'))
+  @UseBefore(authenticate(['local', 'jwt']))
   @UseBefore(CaptchaMiddleware('login'))
   public async login(@CurrentUser() user: User) {
     const token = await signJWT(user.serialize())
