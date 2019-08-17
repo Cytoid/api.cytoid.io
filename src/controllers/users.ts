@@ -140,7 +140,7 @@ export default class UserController extends BaseController {
       })
       .then(async (user) => {
         eventEmitter.emit('user_new', user)
-        ctx.login(user)
+        await ctx.login(user)
         return {
           user,
           token: await signJWT(user.serialize()),
@@ -334,6 +334,25 @@ export default class UserController extends BaseController {
         ownerId: id,
       })
       .onConflict('("provider", "ownerId") DO UPDATE SET uid=excluded.uid, token=excluded.token')
+      .execute()
+    return null
+  }
+
+  @Authorized()
+  @Delete('/:id/providers/:provider')
+  public async removeProvider(
+    @CurrentUser() user: IUser,
+    @Param('id') id: string,
+    @Param('provider') provider: string,
+  ): Promise<null> {
+    if (user.id !== id) {
+      throw new ForbiddenError()
+    }
+    await this.db
+      .createQueryBuilder()
+      .delete()
+      .from(ExternalAccount)
+      .where({ provider, ownerId: id })
       .execute()
     return null
   }

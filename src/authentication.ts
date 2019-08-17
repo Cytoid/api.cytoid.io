@@ -191,12 +191,8 @@ function postExternalAuth(ctx: ParameterizedContext<any, IRouterParamContext<any
       ctx.throw(400, err.message)
     }
     if (user) {
-      ctx.login(user, (error: Error) => {
-        if (err) {
-          ctx.throw(500, err.message)
-        }
-        ctx.body = messageify({ user: classToPlain(user), provider: info.provider })
-      })
+      ctx.body = messageify({ user: classToPlain(user), provider: info.provider })
+      await ctx.login(user)
     } else {
       const sessionData: IExternalCreateAccountSession = {
         id: info.id,
