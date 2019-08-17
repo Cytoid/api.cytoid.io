@@ -598,6 +598,22 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-11.13.14.tgz#03e9416f7d699d71742e5a1e455def7bd55f8fb9"
   integrity sha512-9NjFOB6UUGjJLNANmyIouuaN8YPsPgC4DCOd5lU+DL7HSX/RCfzz0JOtHlspEJq1Ll/JUu/8Cm4wzxpZ8w5sjQ==
 
+"@types/oauth@*":
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/@types/oauth/-/oauth-0.9.1.tgz#e17221e7f7936b0459ae7d006255dff61adca305"
+  integrity sha512-a1iY62/a3yhZ7qH7cNUsxoI3U/0Fe9+RnuFrpTKr+0WVOzbKlSLojShCKe20aOD1Sppv+i8Zlq0pLDuTJnwS4A==
+  dependencies:
+    "@types/node" "*"
+
+"@types/passport-discord@^0.1.3":
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/@types/passport-discord/-/passport-discord-0.1.3.tgz#f88a8da35a6fe89152aa22a0e6408007f367818e"
+  integrity sha512-IQiIF+QAWzAqOKuUJvnMyEeTF6ib9DwjQpOODWawB+cxNiv2Om5csdhX+eLyKRhMtnW4+Em8AMGFunwvB859eQ==
+  dependencies:
+    "@types/express" "*"
+    "@types/passport" "*"
+    "@types/passport-oauth2" "*"
+
 "@types/passport-facebook@^2.1.9":
   version "2.1.9"
   resolved "https://registry.yarnpkg.com/@types/passport-facebook/-/passport-facebook-2.1.9.tgz#0181b40be4e002705f7a29d64da9029c2ab464dc"
@@ -605,6 +621,13 @@
   dependencies:
     "@types/express" "*"
     "@types/passport" "*"
+
+"@types/passport-google-oauth2@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@types/passport-google-oauth2/-/passport-google-oauth2-0.1.2.tgz#41576ee586dae4bd241474b4102d6732f8838b7a"
+  integrity sha512-RiANdjeBclApb//bLvRvoqM8Hb/VgJSro2LPIMyrqJGTCSuotmPTETUOq580Wxp6df2hUvCE+ZjkBv8q/+iZmA==
+  dependencies:
+    "@types/express" "*"
 
 "@types/passport-jwt@^3.0.1":
   version "3.0.1"
@@ -623,6 +646,15 @@
     "@types/express" "*"
     "@types/passport" "*"
     "@types/passport-strategy" "*"
+
+"@types/passport-oauth2@*":
+  version "1.4.8"
+  resolved "https://registry.yarnpkg.com/@types/passport-oauth2/-/passport-oauth2-1.4.8.tgz#b11cb3323970a88db3d170fe3d4dcdd0af02d8bf"
+  integrity sha512-tlX16wyFE5YJR2pHpZ308dgB1MV9/Ra2wfQh71eWk+/umPoD1Rca2D4N5M27W7nZm1wqUNGTk1I864nHvEgiFA==
+  dependencies:
+    "@types/express" "*"
+    "@types/oauth" "*"
+    "@types/passport" "*"
 
 "@types/passport-strategy@*":
   version "0.2.35"
@@ -4019,12 +4051,26 @@ pascalcase@^0.1.1:
   resolved "https://registry.npm.taobao.org/pascalcase/download/pascalcase-0.1.1.tgz#b363e55e8006ca6fe21784d2db22bd15d7917f14"
   integrity sha1-s2PlXoAGym/iF4TS2yK9FdeRfxQ=
 
+passport-discord@^0.1.3:
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/passport-discord/-/passport-discord-0.1.3.tgz#669cc4a770b592f57eb17002ca1743a22e8d7c38"
+  integrity sha512-o8+KiQrV63DCJvYVceyVJgyFhHxqOPlcxaiB8Hlrrm0uq83KfQOMPUcXal0pao5Qx8ZeOH/RBJEbJV9aB0F/hw==
+  dependencies:
+    passport-oauth2 "^1.2.0"
+
 passport-facebook@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/passport-facebook/-/passport-facebook-3.0.0.tgz#b16f7314128be55d020a2b75f574c194bd6d9805"
   integrity sha512-K/qNzuFsFISYAyC1Nma4qgY/12V3RSLFdFVsPKXiKZt434wOvthFW1p7zKa1iQihQMRhaWorVE1o3Vi1o+ZgeQ==
   dependencies:
     passport-oauth2 "1.x.x"
+
+passport-google-oauth2@^0.2.0:
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/passport-google-oauth2/-/passport-google-oauth2-0.2.0.tgz#fc9ea59e7091f02e24fd16d6be9257ea982ebbc3"
+  integrity sha512-62EdPtbfVdc55nIXi0p1WOa/fFMM8v/M8uQGnbcXA4OexZWCnfsEi3wo2buag+Is5oqpuHzOtI64JpHk0Xi5RQ==
+  dependencies:
+    passport-oauth2 "^1.1.2"
 
 passport-jwt@^4.0.0:
   version "4.0.0"
@@ -4041,7 +4087,7 @@ passport-local@^1.0.0:
   dependencies:
     passport-strategy "1.x.x"
 
-passport-oauth2@1.x.x:
+passport-oauth2@1.x.x, passport-oauth2@^1.1.2, passport-oauth2@^1.2.0:
   version "1.5.0"
   resolved "https://registry.yarnpkg.com/passport-oauth2/-/passport-oauth2-1.5.0.tgz#64babbb54ac46a4dcab35e7f266ed5294e3c4108"
   integrity sha512-kqBt6vR/5VlCK8iCx1/KpY42kQ+NEHZwsSyt4Y6STiNjU+wWICG1i8ucc1FapXDGO15C5O5VZz7+7vRzrDPXXQ==

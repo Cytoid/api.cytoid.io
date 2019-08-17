@@ -2,22 +2,23 @@ import {
   IsEmail, IsOptional, IsString,
   MinLength, Validator,
 } from 'class-validator'
+import {Context} from 'koa'
 import {
-  Authorized, BadRequestError, Body, BodyParam,
+  Authorized, BadRequestError, Body, BodyParam, Ctx,
   CurrentUser, Delete,
   ForbiddenError,
-  Get, HttpCode,
+  Get, HeaderParam, HttpCode,
   JsonController, NotFoundError, Param,
   Patch, Post,
   Put, Redirect, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
-import {signJWT} from '../authentication'
+import {getExternalProviderSession, signJWT} from '../authentication'
 import config from '../conf'
 import eventEmitter from '../events'
 import CaptchaMiddleware from '../middlewares/captcha'
 import Profile from '../models/profile'
-import User, {Email, IUser} from '../models/user'
+import User, {Email, ExternalAccount, IUser} from '../models/user'
 import MailClient from '../utils/mail'
 import {VerificationCodeManager} from '../utils/verification_code'
 import BaseController from './base'
@@ -102,7 +103,7 @@ export default class UserController extends BaseController {
 
   @Post('/')
   @UseBefore(CaptchaMiddleware('signup'))
-  public createUser(@Body() newUser: NewUserDto) {
+  public createUser(@Body() newUser: NewUserDto, @Ctx() ctx: Context) {
     if (newUser.email) {
       newUser.email = newUser.email.toLowerCase()
     }
@@ -139,11 +140,41 @@ export default class UserController extends BaseController {
       })
       .then(async (user) => {
         eventEmitter.emit('user_new', user)
+        ctx.login(user)
         return {
           user,
           token: await signJWT(user.serialize()),
         }
       })
+  }
+
+  @Put('/')
+  public async createUserWithExternalSession(
+    @Body() newUser: NewUserDto,
+    @BodyParam('token') token: string,
+    @BodyParam('provider') provider: string,
+    @Ctx() ctx: Context,
+  ) {
+    const sessionData = await getExternalProviderSession(token, provider)
+    if (!sessionData) {
+      throw new NotFoundError('session does not exist')
+    }
+    newUser.email = sessionData.email || newUser.email
+    // TODO: import avatar...
+    const result = await this.createUser(newUser, ctx)
+    await this.db
+      .createQueryBuilder()
+      .insert()
+      .into(ExternalAccount)
+      .values({
+        provider,
+        uid: sessionData.id,
+        token: sessionData.token,
+        ownerId: result.user.id,
+      })
+      .onConflict('("provider", "ownerId") DO UPDATE SET uid=excluded.uid, token=excluded.token')
+      .execute()
+    return result
   }
 
   @Get('/:id/emails')
@@ -275,5 +306,48 @@ export default class UserController extends BaseController {
       [email, userId])
 
     return 'Your email was successfully confirmed!'
+  }
+
+  @Authorized()
+  @Post('/:id/providers/:provider')
+  public async addProvider(
+    @CurrentUser() user: IUser,
+    @Param('id') id: string,
+    @Param('provider') provider: string,
+    @BodyParam('token') token: string,
+  ): Promise<null> {
+    if (user.id !== id) {
+      throw new ForbiddenError()
+    }
+    const sessionData = await getExternalProviderSession(token, provider)
+    if (!sessionData) {
+      throw new NotFoundError('session does not exist')
+    }
+    await this.db
+      .createQueryBuilder()
+      .insert()
+      .into(ExternalAccount)
+      .values({
+        provider,
+        uid: sessionData.id,
+        token: sessionData.token,
+        ownerId: id,
+      })
+      .onConflict('("provider", "ownerId") DO UPDATE SET uid=excluded.uid, token=excluded.token')
+      .execute()
+    return null
+  }
+
+  @Authorized()
+  @Get('/:id/providers')
+  public getProviderStatus(@CurrentUser() user: IUser, @Param('id') id: string) {
+    if (user.id !== id) {
+      throw new ForbiddenError()
+    }
+    return this.db.createQueryBuilder(ExternalAccount, 'e')
+      .select(['e.provider'])
+      .where({ ownerId: id })
+      .getMany()
+      .then((results) => results.map((r) => r.provider))
   }
 }

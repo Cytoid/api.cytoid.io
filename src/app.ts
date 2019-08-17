@@ -13,9 +13,9 @@ const app = new Koa()
 import * as bodyParser from 'koa-bodyparser'
 app.use(bodyParser())
 
-import passport, {authorizationChecker, currentUserChecker, externalAuthentication} from './authentication'
+import passport, {authorizationChecker, currentUserChecker, useExternalAuth} from './authentication'
 app.use(passport.initialize())
-externalAuthentication(app)
+useExternalAuth(app)
 
 app.keys = [conf.secret]
 

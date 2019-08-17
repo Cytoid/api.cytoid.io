@@ -4,7 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn, ManyToOne,
+  Unique, ManyToOne,
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm'
@@ -105,4 +105,28 @@ export class Email {
 
   @Column()
   public ownerId: string
+}
+
+@Unique(['provider', 'ownerId'])
+@Unique(['provider', 'uid'])
+@Entity('external_accounts')
+export class ExternalAccount {
+  @PrimaryColumn()
+  public id: number
+
+  @Column('varchar')
+  public provider: string
+
+  @Column('varchar')
+  public uid: string
+
+  @Column('varchar')
+  public token: string
+
+  @Column('uuid')
+  public ownerId: string
+
+  @Type(() => User)
+  @ManyToOne(() => User, (user) => user.id, { onDelete: 'CASCADE' })
+  public owner: User
 }

@@ -1,17 +1,25 @@
-import {plainToClass} from 'class-transformer'
+import {classToPlain, plainToClass} from 'class-transformer'
+import {randomBytes} from 'crypto'
 import * as jwt from 'jsonwebtoken'
+import {Context, Middleware, ParameterizedContext} from 'koa'
 import * as Koa from 'koa'
+import {authenticate} from 'koa-passport'
 import * as passport from 'koa-passport'
+import {IRouterParamContext} from 'koa-router'
 import * as Router from 'koa-router'
+import {Profile as PassportProfile, Strategy, StrategyCreatedStatic} from 'passport'
+import { Strategy as DiscordStrategy } from 'passport-discord'
 import { Strategy as FacebookStrategy } from 'passport-facebook'
-import {ExtractJwt, Strategy as JwtStrategy} from 'passport-jwt'
-import {Strategy as LocalStrategy} from 'passport-local'
-import {Action} from 'routing-controllers'
+import { Strategy as GoogleStrategy } from 'passport-google-oauth2'
+import { ExtractJwt, Strategy as JwtStrategy } from 'passport-jwt'
+import {IVerifyOptions, Strategy as LocalStrategy} from 'passport-local'
+import { Action, NotFoundError } from 'routing-controllers'
 import {getManager} from 'typeorm'
 import {PasswordValidity} from 'unihash'
 import conf from './conf'
+import {redis} from './db'
 import eventEmitter from './events'
-import User, {IUser} from './models/user'
+import User, {ExternalAccount, IUser} from './models/user'
 
 const db = getManager()
 const JWTOptions = {
@@ -26,15 +34,62 @@ passport.use(
   }),
 )
 
+function checkExternalAccount(provider: string) {
+  return (
+    accessToken: string,
+    refreshToken: string,
+    profile: PassportProfile,
+    callback: (error: any, user?: any, info?: any) => void) => {
+    const newProfile: IProfile = {
+      ...profile,
+      token: refreshToken,
+    }
+    db
+      .createQueryBuilder()
+      .update(ExternalAccount)
+      .set({ token: refreshToken })
+      .where('uid=:id AND provider=:provider', { id: profile.id, provider })
+      .returning('"ownerId"')
+      .execute()
+      .then((result) => result.raw[0] ? result.raw[0].ownerId : null)
+      .then((userId) => {
+        if (!userId) {
+          return null
+        } else {
+          return db.createQueryBuilder(User, 'u')
+            .select(['u.id', 'u.uid', 'u.name', 'u.email', 'u.avatarPath'])
+            .where('u.id=:id', { id: userId })
+            .getOne()
+        }
+      })
+      .then((user) => callback(null, user, newProfile))
+      .catch((error) => callback(error, newProfile))
+  }
+}
+
 passport.use(new FacebookStrategy({
-    clientID: '329872044311027',
-    clientSecret: 'ba062ce1ffb2a84a279e0c1e37a64004',
-    callbackURL: conf.apiURL + '/session/external/facebook/callback',
+    clientID: conf.providers.facebook.client,
+    clientSecret: conf.providers.facebook.secret,
+    callbackURL: conf.apiURL + '/session/external/facebook',
+    profileFields: ['id', 'birthday', 'email'],
   },
-  (accessToken, refreshToken, profile, callback) => {
-    console.log(profile)
-    callback(false)
+  checkExternalAccount('facebook'),
+))
+
+passport.use(new GoogleStrategy({
+    clientID: conf.providers.google.client,
+    clientSecret: conf.providers.google.secret,
+    callbackURL: conf.apiURL + '/session/external/google',
   },
+  checkExternalAccount('google'),
+))
+
+passport.use(new DiscordStrategy({
+    clientID: conf.providers.discord.client,
+    clientSecret: conf.providers.discord.secret,
+    callbackURL: conf.apiURL + '/session/external/discord',
+  },
+  checkExternalAccount('discord'),
 ))
 
 export function signJWT(payload: any): Promise<string> {
@@ -49,25 +104,31 @@ export function signJWT(payload: any): Promise<string> {
   })
 }
 
+async function verifyUsernamePassword(
+  this: StrategyCreatedStatic,
+  username: string,
+  password: string,
+  done: (error: any, user?: any, options?: IVerifyOptions) => void) {
+  username = username.toLowerCase()
+  const user = await db.findOne(User, {
+    where: [
+      {uid: username},
+      {email: username},
+    ],
+    select: ['id', 'uid', 'name', 'email', 'avatarPath', 'password'],
+  })
+  if (!user) { this.fail(null, 404) }
+  const passwordVerified = await user.checkPassword(password)
+  if (passwordVerified === PasswordValidity.Invalid) { return done(null, false) }
+  if (passwordVerified === PasswordValidity.ValidOutdated) {
+    user.setPassword(password)
+      .then(() => db.save(user, {transaction: false}))
+  }
+  return done(null, user)
+}
+
 passport.use(
-  new LocalStrategy(async (username, password, done) => {
-    username = username.toLowerCase()
-    const user = await db.findOne(User, {
-      where: [
-        {uid: username},
-        {email: username},
-      ],
-      select: ['id', 'uid', 'name', 'email', 'avatarPath', 'password'],
-    })
-    if (!user) { return done(null, false) }
-    const passwordVerified = await user.checkPassword(password)
-    if (passwordVerified === PasswordValidity.Invalid) { return done(null, false) }
-    if (passwordVerified === PasswordValidity.ValidOutdated) {
-      user.setPassword(password)
-        .then(() => db.save(user, {transaction: false}))
-    }
-    return done(null, user)
-  }),
+  new LocalStrategy(verifyUsernamePassword),
 )
 
 passport.serializeUser((user: User, done) => {
@@ -110,17 +171,100 @@ export function OptionalAuthenticate(context: any, next: (err?: Error) => Promis
   return next()
 }
 
-export function externalAuthentication(app: Koa) {
+interface IExternalCreateAccountSession {
+  id: string,
+  token: string,
+  email: string,
+  avatar: string,
+  language: string,
+  provider: string
+}
+interface IProfile extends PassportProfile {
+  token: string,
+  email?: string,
+  language?: string,
+  locale?: string,
+}
+function postExternalAuth(ctx: ParameterizedContext<any, IRouterParamContext<any, {}>>, next: () => void) {
+  return async (err: Error, user: User, info: IProfile) => {
+    if (err) {
+      ctx.throw(400, err.message)
+    }
+    if (user) {
+      ctx.login(user, (error: Error) => {
+        if (err) {
+          ctx.throw(500, err.message)
+        }
+        ctx.body = messageify({ user: classToPlain(user), provider: info.provider })
+      })
+    } else {
+      const sessionData: IExternalCreateAccountSession = {
+        id: info.id,
+        token: info.token,
+        email: info.email || (info.emails.length > 0 ? info.emails[0].value : null),
+        avatar: info.photos ? (info.photos.length > 0 ? info.photos[0].value : null) : null,
+        language: info.language || info.locale,
+        provider: info.provider,
+      }
+      const key = await randomBytes(10)
+      const encodedKey = key.toString('base64').replace(/[/+=]/g, '')
+      await redis.setexAsync(
+        'external_session:' + info.provider + ':' + encodedKey,
+        3600,
+        JSON.stringify(sessionData),
+      )
+      ctx.body = messageify({ token: encodedKey, provider: info.provider })
+      ctx.status = 401
+    }
+  }
+}
+
+export async function getExternalProviderSession(
+  token: string,
+  provider: string): Promise<IExternalCreateAccountSession> {
+  const key = 'external_session:' + provider + ':' + token
+  const data = await redis.getAsync(key)
+  if (!data) {
+    return null
+  }
+  await redis.delAsync(key)
+  return JSON.parse(data)
+}
+
+function messageify(obj: any) {
+  return `\
+<!doctype html>
+<html>
+<head>
+</head>
+<body>
+<p>Authentication completed, you may close the window now.</p>
+<script>
+(function(){
+  if (!window.opener) return;
+  window.opener.postMessage(${JSON.stringify(obj)}, '*');
+  window.close();
+})()
+</script>
+</body>
+</html>
+`
+}
+export function useExternalAuth(app: Koa) {
   const router = new Router({
     prefix: '/session/external',
   })
   router
-    .get('/facebook', passport.authenticate('facebook'))
-    .get(
-      '/facebook/callback',
-      passport.authenticate('facebook'),
-      (ctx, next) => {
-        console.log('asdfasdf')
-      })
-  app.use(router.routes()).use(router.allowedMethods())
+    .get('/facebook', (ctx, next) => {
+      return authenticate('facebook', { scope: ['email'] }, postExternalAuth(ctx, next))(ctx, next)
+    })
+    .get('/discord', (ctx, next) => {
+      return authenticate('discord', { scope: ['email', 'identify'] }, postExternalAuth(ctx, next))(ctx, next)
+    })
+    .get('/google', (ctx, next) => {
+      return authenticate('google', { scope: ['email', 'profile'] }, postExternalAuth(ctx, next))(ctx, next)
+    })
+  app
+    .use(router.routes())
+    .use(router.allowedMethods())
 }

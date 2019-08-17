@@ -22,6 +22,19 @@ CREATE TABLE "users" (
 );
 ALTER TABLE "emails" ADD CONSTRAINT "EMAIL_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
 ALTER TABLE "files" ADD CONSTRAINT "FILE_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
+
+CREATE TABLE "external_accounts"
+(
+    "id"       SERIAL  NOT NULL PRIMARY KEY,
+    "provider" varchar NOT NULL,
+    "uid"      varchar NOT NULL,
+    "token"    varchar,
+    "ownerId"  uuid REFERENCES "users" ("id") ON DELETE CASCADE,
+    UNIQUE ("provider", "ownerId"),
+    UNIQUE ("provider", "uid")
+);
+
+
 CREATE TABLE "profiles" (
   "id"                uuid      NOT NULL PRIMARY KEY REFERENCES "users" ("id") ON DELETE CASCADE,
   "birthday"          DATE,

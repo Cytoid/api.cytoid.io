@@ -3,6 +3,10 @@ import { ClientOpts } from 'redis'
 import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions'
 import { IClient as IEmailClient } from './utils/mail'
 
+interface IKeyPair {
+  client: string,
+  secret: string,
+}
 export interface IAppConfiguration extends IConfig {
   host: string
   port: number
@@ -28,6 +32,11 @@ export interface IAppConfiguration extends IConfig {
   captchaKey: string,
   tencentCaptchaKey: string,
   cdnKey: string,
+  providers: {
+    facebook: IKeyPair,
+    discord: IKeyPair,
+    google: IKeyPair,
+  }
 }
 
 const conf: IAppConfiguration = require('config')
