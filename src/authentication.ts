@@ -3,7 +3,6 @@ import {randomBytes} from 'crypto'
 import * as jwt from 'jsonwebtoken'
 import {Context, Middleware, ParameterizedContext} from 'koa'
 import * as Koa from 'koa'
-import {authenticate} from 'koa-passport'
 import * as passport from 'koa-passport'
 import {IRouterParamContext} from 'koa-router'
 import * as Router from 'koa-router'
@@ -146,8 +145,9 @@ export async function currentUserChecker(action: Action): Promise<IUser> {
   return action.context.state.user
 }
 
+const passportSession = passport.session()
 const authorizationCheckers: Koa.Middleware[] = [
-  passport.session(),
+  passportSession,
   passport.authenticate('jwt', {session: false}),
 ]
 export function authorizationChecker(action: Action, roles: string[]) {
@@ -251,14 +251,15 @@ export function useExternalAuth(app: Koa) {
     prefix: '/session/external',
   })
   router
+    .use(passportSession)
     .get('/facebook', (ctx, next) => {
-      return authenticate('facebook', { scope: ['email'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('facebook', { scope: ['email'] }, postExternalAuth(ctx, next))(ctx, next)
     })
     .get('/discord', (ctx, next) => {
-      return authenticate('discord', { scope: ['email', 'identify'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('discord', { scope: ['email', 'identify'] }, postExternalAuth(ctx, next))(ctx, next)
     })
     .get('/google', (ctx, next) => {
-      return authenticate('google', { scope: ['email', 'profile'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('google', { scope: ['email', 'profile'] }, postExternalAuth(ctx, next))(ctx, next)
     })
   app
     .use(router.routes())

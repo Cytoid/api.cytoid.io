@@ -12,10 +12,7 @@ const app = new Koa()
 
 import * as bodyParser from 'koa-bodyparser'
 app.use(bodyParser())
-
 import passport, {authorizationChecker, currentUserChecker, useExternalAuth} from './authentication'
-app.use(passport.initialize())
-useExternalAuth(app)
 
 app.keys = [conf.secret]
 
@@ -33,6 +30,9 @@ app.use(session({
   renew: true, /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
   domain: 'cytoid.io',
 }, app))
+
+app.use(passport.initialize())
+useExternalAuth(app)
 
 useKoaServer(app, {
   controllers: Object.values(controllers),
