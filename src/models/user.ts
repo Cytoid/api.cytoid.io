@@ -53,7 +53,7 @@ export default class User implements IUser {
   public password: Buffer
 
   @Expose()
-  public get avatarURL(): string | null {
+  public get avatarURL(): string {
     if (this.avatarPath) {
       const url = new URL(this.avatarPath, config.assetsURL)
       url.host = (new URL(config.imageURL)).host

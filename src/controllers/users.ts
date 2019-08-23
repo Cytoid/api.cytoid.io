@@ -63,15 +63,16 @@ export default class UserController extends BaseController {
   @Get('/:id/avatar')
   @Redirect('https://google.com') // TO
   public getAvatar(@Param('id') id: string) {
-    return this.repo.findOne({
-      select: ['email', 'avatarPath'],
-      where: validator.isUUID(id, '4') ? { id } : { uid: id },
-    }).then((user) => {
-      if (!user) {
-        throw new NotFoundError()
-      }
-      return user.avatarURL
-    })
+    return this.db.createQueryBuilder(User, 'u')
+      .select(['u.id', 'u.uid', 'u.email', 'u.avatarPath'])
+      .where(validator.isUUID(id, '4') ? { id } : { uid: id })
+      .getOne()
+      .then((user) => {
+        if (!user) {
+          throw new NotFoundError()
+        }
+        return user.avatarURL
+      })
   }
 
   @Delete('/:id/avatar')
