@@ -1,4 +1,7 @@
-import {Get, JsonController, QueryParam} from 'routing-controllers'
+import {CurrentUser, Get, JsonController, QueryParam, UseBefore} from 'routing-controllers'
+import {OptionalAuthenticate} from '../authentication'
+import {Level} from '../models/level'
+import {IUser} from '../models/user'
 import BaseController from './base'
 
 @JsonController('/tags')
@@ -18,12 +21,16 @@ export default class TagsController extends BaseController {
     return searchQuery.then((result) => result.map((a: any) => a.tag))
   }
   @Get('/full')
-  public searchFullText(@QueryParam('search') searchKey: string, @QueryParam('limit') limit: number = 10) {
+  public searchFullText(
+    @QueryParam('search') searchKey: string,
+    @QueryParam('limit') limit: number = 10): any {
     if (limit > 30) {
       limit = 30
+    } else if (limit < 1) {
+      limit = 1
     }
-    if (searchKey === '') {
-      return Promise.resolve([])
+    if (!searchKey) {
+      return []
     }
     return this.db.query(`\
 SELECT title, uid
@@ -31,5 +38,34 @@ FROM to_tsquery(coalesce(nullif(plainto_tsquery($1)::text, ''), $1) || ':*') que
 WHERE query @@ tsv
 ORDER BY ts_rank_cd(tsv, query) DESC
 LIMIT $2;`, [searchKey, limit])
+  }
+
+  @UseBefore(OptionalAuthenticate)
+  @Get('/levels')
+  public searchLevels(
+    @CurrentUser() user: IUser,
+    @QueryParam('search') searchKey: string,
+    @QueryParam('limit') limit: number = 10): any {
+    if (limit > 30) {
+      limit = 30
+    } else if (limit < 1) {
+      limit = 1
+    }
+    const query = this.db
+      .createQueryBuilder(Level, 'l')
+      .select(['l.id', 'l.uid', 'l.title'])
+      .limit(limit)
+    if (searchKey) {
+      return query
+        .where("l.uid LIKE '%'||:query||'%'", { query: searchKey })
+        .getMany()
+    } else {
+      if (!user) {
+        return []
+      }
+      return query
+        .where('l.owner=:owner', { owner: user.id })
+        .getMany()
+    }
   }
 }
