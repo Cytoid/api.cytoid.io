@@ -1,6 +1,8 @@
+import { plainToClass } from 'class-transformer'
 import {Validator} from 'class-validator'
 import {Get, JsonController, NotFoundError, QueryParam} from 'routing-controllers'
 import LeaderboardEntry from '../models/leaderboard'
+import User from '../models/user'
 import BaseController from './base'
 
 const validator = new Validator()
@@ -23,7 +25,9 @@ export default class Leaderboard extends BaseController {
 WITH lb AS (
   SELECT *, rank() OVER (ORDER BY rating DESC) FROM leaderboard
 )
-select lb.*, users.uid from lb JOIN users on users.id=lb.id
+select lb.*, json_build_object(
+  'id', u.id, 'uid', u.uid, 'name', u.name, 'email', u.email, 'avatarPath', u."avatarPath"
+) as owner from lb JOIN users u on u.id=lb.id
 WHERE abs(lb.rank - (SELECT rank FROM lb where id=${
           validator.isUUID(user, '4') ?
             '$1' :
@@ -33,6 +37,9 @@ WHERE abs(lb.rank - (SELECT rank FROM lb where id=${
           for (const result of results) {
             result.rank = parseInt(result.rank, 10)
             result.rating = parseFloat(result.rating)
+            const email = result.owner.email
+            result.owner = plainToClass(User, result.owner)
+            result.owner.email = email
           }
           return results
         })
