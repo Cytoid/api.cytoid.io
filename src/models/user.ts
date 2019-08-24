@@ -57,8 +57,9 @@ export default class User implements IUser {
     if (this.avatarPath) {
       const url = new URL(this.avatarPath, config.assetsURL)
       url.host = (new URL(config.imageURL)).host
-      url.searchParams.append('max-h', '512')
-      url.searchParams.append('max-w', '512')
+      url.searchParams.append('h', '512')
+      url.searchParams.append('w', '512')
+      url.searchParams.append('fit', 'crop')
       return url.href
     } else if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')

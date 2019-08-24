@@ -1,3 +1,4 @@
+import { plainToClass } from 'class-transformer'
 import {
   IsEmail, IsOptional, IsString,
   MinLength, Validator,
@@ -8,7 +9,7 @@ import {
   CurrentUser, Delete,
   ForbiddenError,
   Get, HeaderParam, HttpCode,
-  JsonController, NotFoundError, Param,
+  JsonController, NotFoundError, OnUndefined, Param,
   Patch, Post,
   Put, Redirect, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
@@ -91,15 +92,25 @@ export default class UserController extends BaseController {
 
   @Put('/:id')
   @Authorized()
-  public editUser(@Param('id') id: string, @CurrentUser() user: IUser, @Body() newUser: IUser) {
+  @OnUndefined(202)
+  public async editUser(
+    @Param('id') id: string,
+    @CurrentUser() user: IUser,
+    @BodyParam('name') newUsername: string,
+    @Ctx() ctx: Context,
+  ) {
     if (user.id !== id) {
       throw new UnauthorizedError()
     }
-    return this.db.createQueryBuilder()
+    await this.db.createQueryBuilder()
       .update(User)
-      .set({ name: newUser.name })
+      .set({ name: newUsername })
       .where('id=:id', { id })
       .execute()
+
+    const entity = plainToClass(User, user)
+    entity.name = newUsername
+    await ctx.logIn(entity)
   }
 
   @Post('/')

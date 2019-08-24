@@ -40,7 +40,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
     }
 
     if (info.replaceUID && info.replaceUID !== packageMeta.id) {
-      throw new BadRequestError(`Uploaded package ${level.uid} but requires ${info.replaceUID}`)
+      throw new BadRequestError(`Uploaded package ${packageMeta.id} but requires ${info.replaceUID}`)
     }
     level.uid = packageMeta.id
     level.version = packageMeta.version || 1
@@ -128,7 +128,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
       } else {
         await tr.insert(Level, level)
           .catch((error) => {
-            if (error.constraint === 'LEVEL_UID_UNIQUE') {
+            if (error.constraint === 'levels_uid_key') {
               throw new ForbiddenError(`Level ${level.uid} already exists.`)
             }
             throw error
