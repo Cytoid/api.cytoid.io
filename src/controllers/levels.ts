@@ -376,7 +376,7 @@ FROM ratings`,
       user ? [id, user.id] : [id])
       .then(async (a) => {
         a = a[0]
-        a.average = parseInt(a.average, 10)
+        a.average = parseFloat(a.average)
         a.total = parseInt(a.total, 10)
         a.distribution = a.distribution.map((i: string) => parseInt(i, 10))
         const rating = parseInt(a.rating, 10)
@@ -531,6 +531,16 @@ FROM ratings`,
     entities.forEach((record, index) => {
       (record as any).rank = raw[index].rank
     })
+    if (entities.length === 0) {
+      // length is 0, check the existence of the level
+      const count = await this.db.createQueryBuilder(Chart, 'c')
+        .where('c.type=:type', { type: chartType })
+        .andWhere('c.id=(SELECT id FROM levels WHERE uid=:uid)', { uid: id })
+        .getCount()
+      if (count === 0) {
+        throw new NotFoundError()
+      }
+    }
     return entities
   }
 

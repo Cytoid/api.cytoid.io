@@ -35,7 +35,7 @@ export default class TagsController extends BaseController {
     return this.db.query(`\
 SELECT title, uid
 FROM to_tsquery(coalesce(nullif(plainto_tsquery($1)::text, ''), $1) || ':*') query, levels_search
-WHERE query @@ tsv
+WHERE query @@ tsv OR levels_search.title LIKE '%' || $1 || '%'
 ORDER BY ts_rank_cd(tsv, query) DESC
 LIMIT $2;`, [searchKey, limit])
   }
