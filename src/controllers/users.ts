@@ -11,7 +11,7 @@ import {
   Get, HeaderParam, HttpCode,
   JsonController, NotFoundError, OnUndefined, Param,
   Patch, Post,
-  Put, Redirect, UnauthorizedError, UseBefore,
+  Put, QueryParam, Redirect, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {getExternalProviderSession, signJWT} from '../authentication'
@@ -63,7 +63,10 @@ export default class UserController extends BaseController {
 
   @Get('/:id/avatar')
   @Redirect('https://google.com') // TO
-  public getAvatar(@Param('id') id: string) {
+  public getAvatar(
+    @Param('id') id: string,
+    @QueryParam('size') size: number = 512,
+  ) {
     return this.db.createQueryBuilder(User, 'u')
       .select(['u.id', 'u.uid', 'u.email', 'u.avatarPath'])
       .where(validator.isUUID(id, '4') ? { id } : { uid: id })
@@ -72,7 +75,7 @@ export default class UserController extends BaseController {
         if (!user) {
           throw new NotFoundError()
         }
-        return user.avatarURL
+        return user.getAvatarURL(size)
       })
   }
 
