@@ -134,7 +134,7 @@ group by grade;`, [uuid])
       throw new BadRequestError('not uuid')
     }
     return this.db.query('select user_rating($1)', [ uuid ])
-      .then((result) => parseFloat(result[0].user_rating))
+      .then((result) => parseFloat(result[0].user_rating) || 0)
   }
 
   @Get('/:id/exp')

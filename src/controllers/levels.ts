@@ -535,7 +535,7 @@ FROM ratings`,
       // length is 0, check the existence of the level
       const count = await this.db.createQueryBuilder(Chart, 'c')
         .where('c.type=:type', { type: chartType })
-        .andWhere('c.id=(SELECT id FROM levels WHERE uid=:uid)', { uid: id })
+        .andWhere('c."levelId"=(SELECT id FROM levels WHERE uid=:uid)', { uid: id })
         .getCount()
       if (count === 0) {
         throw new NotFoundError()

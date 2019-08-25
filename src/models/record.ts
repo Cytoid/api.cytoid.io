@@ -27,7 +27,7 @@ export class RecordDetails {
 
   @IsInt()
   @Min(0)
-  public max_combo: number
+  public maxCombo: number
 }
 
 export enum GameplayMods {
