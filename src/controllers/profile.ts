@@ -144,8 +144,8 @@ group by grade;`, [uuid])
     }
     return this.db.query(`
 WITH scores AS (
- SELECT charts."notesCount" * (charts.difficulty / 15) +
-  levels.duration / 60 * 100 * (CASE WHEN records.ranked THEN 1 ELSE 0.5 END) AS base,
+ SELECT (charts."notesCount" * (charts.difficulty / 15.0) +
+  levels.duration / 60.0 * 100.0) * (CASE WHEN records.ranked THEN 1 ELSE 0.5 END) AS base,
   records.score as score,
   levels.id as level
  FROM records
