@@ -577,14 +577,15 @@ FROM ratings`,
   }
 
   @Get('/:id/package')
-  @Authorized()
   @Redirect(':assetsURL/:path')
   public async downloadPackage(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    /*
     await this.db.query(`\
     INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
     ON CONFLICT ("levelId", "userId")
     DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`,
       [levelId, user.id])
+   */
 
     const path = await this.db.createQueryBuilder(Level, 'l')
       .select('l.packagePath')
