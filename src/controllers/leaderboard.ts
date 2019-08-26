@@ -31,7 +31,8 @@ select lb.*, json_build_object(
 WHERE abs(lb.rank - (SELECT rank FROM lb where id=${
           validator.isUUID(user, '4') ?
             '$1' :
-            '(SELECT id FROM users WHERE uid=$1)'})) < $2`,
+            '(SELECT id FROM users WHERE uid=$1)'})) < $2
+ORDER BY lb.rank`,
         [user, limit])
         .then((results) => {
           for (const result of results) {

@@ -376,7 +376,7 @@ FROM ratings`,
       user ? [id, user.id] : [id])
       .then(async (a) => {
         a = a[0]
-        a.average = parseInt(a.average, 10)
+        a.average = parseFloat(a.average)
         a.total = parseInt(a.total, 10)
         a.distribution = a.distribution.map((i: string) => parseInt(i, 10))
         const rating = parseInt(a.rating, 10)
@@ -531,6 +531,16 @@ FROM ratings`,
     entities.forEach((record, index) => {
       (record as any).rank = raw[index].rank
     })
+    if (entities.length === 0) {
+      // length is 0, check the existence of the level
+      const count = await this.db.createQueryBuilder(Chart, 'c')
+        .where('c.type=:type', { type: chartType })
+        .andWhere('c."levelId"=(SELECT id FROM levels WHERE uid=:uid)', { uid: id })
+        .getCount()
+      if (count === 0) {
+        throw new NotFoundError()
+      }
+    }
     return entities
   }
 
@@ -567,14 +577,15 @@ FROM ratings`,
   }
 
   @Get('/:id/package')
-  @Authorized()
   @Redirect(':assetsURL/:path')
   public async downloadPackage(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    /*
     await this.db.query(`\
     INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
     ON CONFLICT ("levelId", "userId")
     DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`,
       [levelId, user.id])
+   */
 
     const path = await this.db.createQueryBuilder(Level, 'l')
       .select('l.packagePath')

@@ -57,11 +57,11 @@ EXECUTE PROCEDURE charts_difficulty_records_rating_trigger();
 -- Util: Do a full calculation of the user rating.
 CREATE FUNCTION user_rating(uid uuid) RETURNS numeric(10,8) as
 $$ select avg(rating)
-from ((select rating
+from ((select rating from (select rating
        from records
        where "ownerId" = uid AND ranked = true
        order by id desc
-       limit 10)
+       limit 30) a order by rating desc limit 10)
       union all
       (select max(rating) as rating
        from records

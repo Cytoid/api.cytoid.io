@@ -54,15 +54,21 @@ export default class User implements IUser {
 
   @Expose()
   public get avatarURL(): string {
+    return this.getAvatarURL(512)
+  }
+
+  public getAvatarURL(size: number) {
     if (this.avatarPath) {
       const url = new URL(this.avatarPath, config.assetsURL)
       url.host = (new URL(config.imageURL)).host
-      url.searchParams.append('max-h', '512')
-      url.searchParams.append('max-w', '512')
+      url.searchParams.append('h', size.toString())
+      url.searchParams.append('w', size.toString())
+      url.searchParams.append('fit', 'crop')
       return url.href
     } else if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
       const url = new URL('avatar/' + hash, config.gravatarURL)
+      url.searchParams.append('s', size.toString())
       return url.href
     } else {
       return 'https://artifacts.cytoid.io/avatar.jpg'

@@ -1,3 +1,4 @@
+import { plainToClass } from 'class-transformer'
 import {
   IsEmail, IsOptional, IsString,
   MinLength, Validator,
@@ -8,9 +9,9 @@ import {
   CurrentUser, Delete,
   ForbiddenError,
   Get, HeaderParam, HttpCode,
-  JsonController, NotFoundError, Param,
+  JsonController, NotFoundError, OnUndefined, Param,
   Patch, Post,
-  Put, Redirect, UnauthorizedError, UseBefore,
+  Put, QueryParam, Redirect, UnauthorizedError, UseBefore,
 } from 'routing-controllers'
 import {getRepository} from 'typeorm'
 import {getExternalProviderSession, signJWT} from '../authentication'
@@ -62,7 +63,10 @@ export default class UserController extends BaseController {
 
   @Get('/:id/avatar')
   @Redirect('https://google.com') // TO
-  public getAvatar(@Param('id') id: string) {
+  public getAvatar(
+    @Param('id') id: string,
+    @QueryParam('size') size: number = 512,
+  ) {
     return this.db.createQueryBuilder(User, 'u')
       .select(['u.id', 'u.uid', 'u.email', 'u.avatarPath'])
       .where(validator.isUUID(id, '4') ? { id } : { uid: id })
@@ -71,7 +75,7 @@ export default class UserController extends BaseController {
         if (!user) {
           throw new NotFoundError()
         }
-        return user.avatarURL
+        return user.getAvatarURL(size)
       })
   }
 
@@ -91,15 +95,25 @@ export default class UserController extends BaseController {
 
   @Put('/:id')
   @Authorized()
-  public editUser(@Param('id') id: string, @CurrentUser() user: IUser, @Body() newUser: IUser) {
+  @OnUndefined(202)
+  public async editUser(
+    @Param('id') id: string,
+    @CurrentUser() user: IUser,
+    @BodyParam('name') newUsername: string,
+    @Ctx() ctx: Context,
+  ) {
     if (user.id !== id) {
       throw new UnauthorizedError()
     }
-    return this.db.createQueryBuilder()
+    await this.db.createQueryBuilder()
       .update(User)
-      .set({ name: newUser.name })
+      .set({ name: newUsername })
       .where('id=:id', { id })
       .execute()
+
+    const entity = plainToClass(User, user)
+    entity.name = newUsername
+    await ctx.logIn(entity)
   }
 
   @Post('/')
