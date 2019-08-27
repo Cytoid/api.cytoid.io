@@ -26,7 +26,6 @@ import { Validator } from 'class-validator'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
-import eventEmitter from '../events'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
 import { IUser } from '../models/user'
@@ -400,7 +399,6 @@ FROM ratings`,
     @Param('id') id: string,
     @CurrentUser() user: IUser,
     @BodyParam('rating', {required: true}) rating: number) {
-    eventEmitter.emit('user_activity', user)
     if (!rating || rating > 10 || rating <= 0) {
       throw new BadRequestError('Rating missing or out of range (0 - 10)')
     }
@@ -553,7 +551,6 @@ FROM ratings`,
     @Param('chartType') chartType: string,
     @CurrentUser() user: IUser,
     @Body() record: NewRecord) {
-    eventEmitter.emit('user_activity', user)
     const qb = this.db.createQueryBuilder()
     const chartQuery =
     qb.subQuery()
@@ -589,10 +586,6 @@ FROM ratings`,
     DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`,
       [levelId, user.id])
    */
-
-    if (user) {
-      eventEmitter.emit('user_activity', user)
-    }
 
     const path = await this.db.createQueryBuilder(Level, 'l')
       .select('l.packagePath')

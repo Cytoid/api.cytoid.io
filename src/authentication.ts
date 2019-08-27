@@ -123,6 +123,7 @@ async function verifyUsernamePassword(
     user.setPassword(password)
       .then(() => db.save(user, {transaction: false}))
   }
+  eventEmitter.emit('user_activity', user)
   return done(null, user)
 }
 
@@ -135,7 +136,6 @@ passport.serializeUser((user: User, done) => {
 })
 
 passport.deserializeUser((id: IUser, done) => {
-  eventEmitter.emit('user_activity', id)
   done(null, id)
 })
 
@@ -157,6 +157,7 @@ export function authorizationChecker(action: Action, roles: string[]) {
       break
     }
   }
+  eventEmitter.emit('user_activity', action.context.state.user)
   return action.context.state.user
 }
 
@@ -164,6 +165,7 @@ export function OptionalAuthenticate(context: any, next: (err?: Error) => Promis
   for (const authenticator of authorizationCheckers) {
     authenticator(context, () => Promise.resolve())
     if (context.state.user) {
+      eventEmitter.emit('user_activity', context.state.user)
       break
     }
   }
