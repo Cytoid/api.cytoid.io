@@ -107,7 +107,7 @@ group by grade;`, [uuid])
         'count(records) filter (WHERE records.ranked=true) as total_ranked_plays',
         'sum(chart."notesCount") as cleared_notes',
         "max((records.details -> 'maxCombo')::integer) as max_combo",
-        'avg(records.accuracy) as average_ranked_accuracy',
+        'avg(records.accuracy) filter (WHERE records.ranked=true) as average_ranked_accuracy',
         'sum(records.score) filter (WHERE records.ranked=true) as total_ranked_score',
         'sum(level.duration) as total_play_time',
       ])
