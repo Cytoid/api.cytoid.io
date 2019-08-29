@@ -147,9 +147,9 @@ export default class UserController extends BaseController {
     })
       .catch((error) => {
         if (error.constraint === 'emails_pkey') {
-          throw new ForbiddenError('duplicated email address')
-        } else if (error.constraint === 'USER_UID_UNIQUE') {
-          throw new ForbiddenError('duplicated uid')
+          throw new ForbiddenError('The email address already exist')
+        } else if (error.constraint === 'users_uid_key') {
+          throw new ForbiddenError('The UID already exist')
         }
         throw error
       })
