@@ -595,22 +595,20 @@ FROM ratings`,
 
   @Get('/:id/package')
   @Redirect(':assetsURL/:path')
-  public async downloadPackage(@Param('id') levelId: string, @CurrentUser() user: IUser) {
-    /*
-    await this.db.query(`\
-    INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
-    ON CONFLICT ("levelId", "userId")
-    DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`,
-      [levelId, user.id])
-   */
-
-    const path = await this.db.createQueryBuilder(Level, 'l')
+  @Authorized()
+  public downloadPackage(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    return this.db.createQueryBuilder(Level, 'l')
       .select('l.packagePath')
       .where({ uid: levelId })
       .getOne()
-      .then((a) => a.packagePath)
-
-    return signURL(conf.assetsURL, path, 3600)
+      .then((a) => {
+        const path = a.packagePath
+        this.db.query(`\
+INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
+ON CONFLICT ("levelId", "userId")
+DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`, [levelId, user.id])
+        return signURL(conf.assetsURL, path, 3600)
+      })
   }
 
   private queryLeaderboard(levelUid: string, chartType: string) {
