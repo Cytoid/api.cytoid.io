@@ -116,11 +116,28 @@ export default class LevelController extends BaseController {
   @Get('/:id/legacy')
   public getLevelMetaLegacy(@Param('id') id: string) {
     return this.db.createQueryBuilder()
-      .select(["levels.metadata->'raw' as raw"])
+      .select([
+        "levels.metadata->'raw' as raw",
+        "array_agg(json_build_object('difficulty', c.difficulty, 'type', c.type)) as charts",
+      ])
       .from('levels', 'levels')
+      .innerJoin('charts', 'c', 'c."levelId"=levels.id')
+      .groupBy('levels.metadata')
       .where('levels.uid=:id', { id })
       .getRawOne()
-      .then((a) => a && a.raw)
+      .then((a) => {
+        if (!a) {
+          return false
+        }
+        const diffMap = new Map()
+        for (const c of a.charts) {
+          diffMap.set(c.type, c.difficulty)
+        }
+        for (const c of a.raw.charts) {
+          c.difficulty = diffMap.get(c.type)
+        }
+        return a.raw
+      })
   }
 
   @Patch('/:id')
