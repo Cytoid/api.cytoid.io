@@ -157,7 +157,9 @@ export function authorizationChecker(action: Action, roles: string[]) {
       break
     }
   }
-  eventEmitter.emit('user_activity', action.context.state.user)
+  if (action.context.state.user) {
+    eventEmitter.emit('user_activity', action.context.state.user)
+  }
   return action.context.state.user
 }
 
