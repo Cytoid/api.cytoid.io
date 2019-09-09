@@ -114,7 +114,7 @@ async function verifyUsernamePassword(
       {uid: username},
       {email: username},
     ],
-    select: ['id', 'uid', 'name', 'email', 'avatarPath', 'password'],
+    select: ['id', 'uid', 'name', 'email', 'avatarPath', 'password', 'role'],
   })
   if (!user) { this.fail(null, 404) }
   const passwordVerified = await user.checkPassword(password)

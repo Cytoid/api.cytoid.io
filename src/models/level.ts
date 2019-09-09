@@ -9,6 +9,8 @@ import {
   PrimaryGeneratedColumn, RelationId, Unique, UpdateDateColumn, VersionColumn,
 } from 'typeorm'
 
+import ac from '../access'
+
 import File, {IDirectory} from './file'
 import User from './user'
 
@@ -189,3 +191,12 @@ export class Download {
   @Column('smallint')
   public count: number
 }
+
+ac.grant('user')
+    .createOwn('level')
+    .deleteOwn('level')
+    .readOwn('level')
+    .updateOwn('level', ['title', 'description', 'tags', 'published'])
+  .grant('moderator')
+    .readAny('level')
+    .updateAny('level', ['title', 'description', 'tags', 'category', 'censored', 'published'])

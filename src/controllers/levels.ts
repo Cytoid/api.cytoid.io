@@ -31,6 +31,7 @@ import Record, {RecordDetails} from '../models/record'
 import { IUser } from '../models/user'
 import signURL from '../utils/sign_url'
 import BaseController from './base'
+import ac from '../access'
 const validator = new Validator()
 
 class NewRecord {
@@ -149,16 +150,17 @@ export default class LevelController extends BaseController {
     const existingLevel = await this.levelRepo.findOne({ uid: id }, {
       select: ['ownerId'] ,
     })
-    if (existingLevel.ownerId !== user.id) {
-      throw new ForbiddenError('User does not own the level!')
-    }
     if (level.tags) {
       level.tags = level.tags.map((a) => a.toLowerCase())
     }
-    delete level.censored
-    delete level.uid
-    delete level.id
-    delete level.ownerId
+    const permission = existingLevel.ownerId === user.id ?
+      ac.can(user.role).updateOwn('level') :
+      ac.can(user.role).updateAny('level')
+
+    if (!permission.granted) {
+      throw new ForbiddenError("You don't have permission to edit this level")
+    }
+    level = permission.filter(level)
     await this.levelRepo.update({ uid: id }, level)
     return null
   }

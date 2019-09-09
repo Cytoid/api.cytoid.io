@@ -19,6 +19,7 @@ export interface IUser {
   uid?: string
   name: string
   email?: string
+  role: string
 }
 
 @Entity('users')
@@ -51,6 +52,9 @@ export default class User implements IUser {
   @Exclude()
   @Column('bytea', { select: false })
   public password: Buffer
+
+  @Column('varchar', { default: 'user' })
+  public role: string
 
   @Expose()
   public get avatarURL(): string {
@@ -93,6 +97,7 @@ export default class User implements IUser {
       id: this.id,
       name: this.name,
       uid: this.uid,
+      role: this.role,
     }
   }
 }
