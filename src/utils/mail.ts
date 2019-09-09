@@ -1,5 +1,6 @@
 import axios, {AxiosInstance, AxiosResponse} from 'axios'
 import config from '../conf'
+import { IUser } from '../models/user'
 export interface IClient {
   email: string
   name: string
@@ -27,9 +28,13 @@ export class Sendgrid implements ITransport {
     this.replyTo = replyTo
   }
 
-  public sendWithRemoteTemplate(templateID: string, target: IClient, data: any): Promise<AxiosResponse> {
+  public sendWithRemoteTemplate(templateID: string, target: IUser | IClient, data: any): Promise<AxiosResponse> {
     data.email = target.email
-    data.name = target.name
+    if (!target.name && (target as IUser).uid) {
+      data.name = (target as IUser).uid
+    } else {
+      data.name = target.name
+    }
     const postData: any = {
       personalizations: [
         {
