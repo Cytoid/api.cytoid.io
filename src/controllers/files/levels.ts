@@ -3,6 +3,7 @@ import {BadRequestError, ForbiddenError, InternalServerError} from 'routing-cont
 import { getManager } from 'typeorm'
 import {resolve as resolveURL} from 'url'
 import conf from '../../conf'
+import eventEmitter from '../../events'
 import File from '../../models/file'
 import {Chart, ILevelBundle, Level } from '../../models/level'
 import {IUser} from '../../models/user'
@@ -135,6 +136,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
           })
         await tr.insert(Chart, charts)
       }
+      eventEmitter.emit('level_uploaded', level)
       return level
     })
       .then((result: any) => {

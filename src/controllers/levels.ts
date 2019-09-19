@@ -23,15 +23,16 @@ import {
 import {getRepository, SelectQueryBuilder} from 'typeorm'
 
 import { Validator } from 'class-validator'
+import ac from '../access'
 import {OptionalAuthenticate} from '../authentication'
 import conf from '../conf'
 import {redis} from '../db'
+import eventEmitter from '../events'
 import {Chart, Level, Rating} from '../models/level'
 import Record, {RecordDetails} from '../models/record'
 import { IUser } from '../models/user'
 import signURL from '../utils/sign_url'
 import BaseController from './base'
-import ac from '../access'
 const validator = new Validator()
 
 class NewRecord {
@@ -148,11 +149,12 @@ export default class LevelController extends BaseController {
     @CurrentUser() user: IUser,
     @Body() level: Level): Promise<null> {
     const existingLevel = await this.levelRepo.findOne({ uid: id }, {
-      select: ['ownerId'] ,
+      select: ['ownerId', 'published'] ,
     })
     if (level.tags) {
       level.tags = level.tags.map((a) => a.toLowerCase())
     }
+
     const permission = existingLevel.ownerId === user.id ?
       ac.can(user.role).updateOwn('level') :
       ac.can(user.role).updateAny('level')
@@ -160,8 +162,21 @@ export default class LevelController extends BaseController {
     if (!permission.granted) {
       throw new ForbiddenError("You don't have permission to edit this level")
     }
+
     level = permission.filter(level)
+
     await this.levelRepo.update({ uid: id }, level)
+
+    if (existingLevel.published !== true && level.published === true) {
+      const detailedLevel = await this.levelRepo.findOne(
+        { uid: id },
+        {
+          relations: ['bundle', 'charts', 'owner'],
+        },
+      )
+      eventEmitter.emit('level_published', detailedLevel)
+    }
+
     return null
   }
 

@@ -1,9 +1,9 @@
 import {randomBytes} from 'crypto'
 import {
   Authorized, BadRequestError,
-  CurrentUser, ForbiddenError, Get, HttpCode, InternalServerError, JsonController, NotFoundError,
-  Param, Params,
-  Post, UseBefore, Body,
+  Body, CurrentUser, ForbiddenError, Get, HttpCode, InternalServerError, JsonController,
+  NotFoundError, Param,
+  Params, Post, UseBefore,
 } from 'routing-controllers'
 import {redis} from '../../db'
 import CaptchaMiddleware from '../../middlewares/captcha'
