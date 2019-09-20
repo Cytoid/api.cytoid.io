@@ -108,7 +108,6 @@ export default class UserController extends BaseController {
       .innerJoin('users', 'users', 'users.id=emails."ownerId"')
       .select(['users.id', 'users.uid', 'users.name'])
       .where('emails.address=:email', { email })
-      .andWhere('emails.verified=true')
       .getRawOne()
     if (!user) {
       return
