@@ -247,7 +247,7 @@ export default class LevelController extends BaseController {
       keyMap[ctx.request.query.sort] &&
       ctx.request.query.sort !== 'creation_date'
     ) {
-      query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder)
+      query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder, 'NULLS LAST')
         .addOrderBy('levels.date_created', 'DESC')
     } else if (!ctx.request.query.search) {
       query = query.orderBy('levels.date_created', theSortOrder)
