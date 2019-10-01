@@ -20,8 +20,8 @@ CREATE TABLE "users" (
   "date_registration" TIMESTAMP NOT NULL             DEFAULT now(),
   "active"            boolean   NOT NULL             DEFAULT true
 );
-ALTER TABLE "emails" ADD CONSTRAINT "EMAIL_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
-ALTER TABLE "files" ADD CONSTRAINT "FILE_PK_OWNER_ID" FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
+ALTER TABLE "emails" ADD FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE CASCADE;
+ALTER TABLE "files" ADD FOREIGN KEY ("ownerId") REFERENCES "users" ("id") ON DELETE SET NULL;
 
 CREATE TABLE "external_accounts"
 (

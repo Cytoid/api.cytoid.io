@@ -10,6 +10,7 @@ CREATE INDEX tags_search_tsv ON tags_search USING gin(tsv);
 CREATE MATERIALIZED VIEW levels_search AS
 SELECT setweight(to_tsvector(levels.uid), 'C') ||
        setweight(to_tsvector(title), 'D') ||
+       setweight(to_tsvector(coalesce(metadata->>'title_localized', '')), 'D') ||
        setweight(to_tsvector(description), 'A') ||
        setweight(to_tsvector(array_to_string(tags, ',', '*')), 'D') ||
        setweight(to_tsvector(coalesce(users.uid, '')), 'B') ||

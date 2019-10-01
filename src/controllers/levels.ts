@@ -98,7 +98,15 @@ export default class LevelController extends BaseController {
         delete result.package
         delete result.metadata.raw
 
-        if (user && (user.id === level.ownerId)) {
+        let readAny = false
+        if (user) {
+          const permission = ac.can(user.role)
+          const p = (user.id === level.ownerId) ?
+            permission.readOwn('level') :
+            permission.readAny('level')
+          readAny = p.granted
+        }
+        if (readAny) {
           ctx.set('Cache-Control', 'private')
           return result // If the user was the owner, return the result without all the checks.
         } else {
@@ -109,8 +117,8 @@ export default class LevelController extends BaseController {
           throw new HttpError(451, 'censored:' + level.censored)
         } // If the level was censored, return 451. On the global site ignore ccp censorship.
 
-        if (!level.published) {
-          throw new ForbiddenError('unpublished')
+        if (level.published === false) {
+          throw new ForbiddenError('Access Denied')
         }
         return result
       })
