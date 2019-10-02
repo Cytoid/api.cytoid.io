@@ -2,6 +2,7 @@ import axios from 'axios'
 import {BadRequestError, ForbiddenError, InternalServerError} from 'routing-controllers'
 import { getManager } from 'typeorm'
 import {resolve as resolveURL} from 'url'
+import ac from '../../access'
 import conf from '../../conf'
 import eventEmitter from '../../events'
 import File from '../../models/file'
@@ -40,13 +41,27 @@ const LevelUploadHandler: IFileUploadHandler =  {
       throw new BadRequestError("The 'id' field is required in level.json")
     }
 
-    if (info.replaceUID && info.replaceUID !== packageMeta.id) {
-      throw new BadRequestError(`Uploaded package ${packageMeta.id} but requires ${info.replaceUID}`)
+    if (info.replaceUID) {
+      if (info.replaceUID !== packageMeta.id) {
+        throw new BadRequestError(`Uploaded package ${packageMeta.id} but requires ${info.replaceUID}`)
+      }
+      const oldLevel = await db.findOne(Level,{
+        select: ['ownerId'],
+        where: { uid: info.replaceUID },
+      })
+      const access = ac.can(user.role)
+      const granted = (
+        oldLevel.ownerId === user.id ?
+          access.updateOwn('level') :
+          access.updateAny('level')
+      ).granted
+      if (!granted) {
+        throw new ForbiddenError("You don't have the permission to replace this level")
+      }
     }
     level.uid = packageMeta.id
     level.version = packageMeta.version || 1
     level.title = packageMeta.title || ''
-    level.ownerId = user.id
     level.metadata = {
       title: packageMeta.title,
       title_localized: packageMeta.title_localized,
@@ -127,6 +142,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
           .andWhere('type NOT IN (:...ids)', { ids: charts.map((c) => c.type)})
           .execute()
       } else {
+        level.ownerId = user.id
         await tr.insert(Level, level)
           .catch((error) => {
             if (error.constraint === 'levels_uid_key') {
