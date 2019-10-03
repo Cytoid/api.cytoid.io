@@ -56,7 +56,7 @@ function checkExternalAccount(provider: string) {
           return null
         } else {
           return db.createQueryBuilder(User, 'u')
-            .select(['u.id', 'u.uid', 'u.name', 'u.email', 'u.avatarPath'])
+            .select(['u.id', 'u.uid', 'u.name', 'u.email', 'u.avatarPath', 'u.role'])
             .where('u.id=:id', { id: userId })
             .getOne()
         }
