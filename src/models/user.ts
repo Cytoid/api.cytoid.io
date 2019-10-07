@@ -67,7 +67,7 @@ export default class User implements IUser {
       url.host = (new URL(config.imageURL)).host
       url.searchParams.append('h', size.toString())
       url.searchParams.append('w', size.toString())
-      url.searchParams.append('fit', 'crop')
+      url.searchParams.append('rt', 'fill')
       return url.href
     } else if (this.email) {
       const hash = createHash('md5').update(this.email.toLowerCase()).digest('hex')
