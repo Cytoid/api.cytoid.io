@@ -210,8 +210,8 @@ export default class LevelController extends BaseController {
     @QueryParam('order') sortOrder: string = 'asc',
     @Ctx() ctx: Context) {
     const theSortOrder: 'DESC' | 'ASC' = (sortOrder.toUpperCase() === 'DESC') ? 'DESC' : 'ASC'
-    if (pageLimit > 30) {
-      pageLimit = 30
+    if (pageLimit > 200) {
+      pageLimit = 200
     } else if (pageLimit < 0) {
       pageLimit = 0
     }
