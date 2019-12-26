@@ -542,6 +542,12 @@ FROM ratings`,
       // See https://github.com/typeorm/typeorm/issues/1116
       const orgQuery = qb.getQuery
       const orgParams = qb.getParameters
+      if (userLimit < 0) {
+        userLimit = 0
+      }
+      if (userLimit > 10) {
+        userLimit = 10
+      }
       qb.getQuery =
         () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= ${userLimit}`
       qb.getParameters = () => {
