@@ -531,7 +531,8 @@ FROM ratings`,
     @Param('chartType') chartType: string,
     @QueryParam('limit') limit: number = 10,
     @QueryParam('page') page: number = 0,
-    @QueryParam('user') user?: string) {
+    @QueryParam('user') user?: string,
+    @QueryParam('userLimit') userLimit: number = 3) {
     let qb = this.queryLeaderboard(id, chartType)
     if (user) {
       const isUUID = validator.isUUID(user, '4')
@@ -541,7 +542,8 @@ FROM ratings`,
       // See https://github.com/typeorm/typeorm/issues/1116
       const orgQuery = qb.getQuery
       const orgParams = qb.getParameters
-      qb.getQuery = () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= 3`
+      qb.getQuery =
+        () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= ${userLimit}`
       qb.getParameters = () => {
         const a = orgParams.call(qb)
         a.user = user
