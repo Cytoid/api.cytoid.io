@@ -6,6 +6,8 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator'
+import { randomBytesAsync } from '../utils'
+import { createDecipheriv } from 'crypto'
 import {Context} from 'koa'
 import {
   Authorized,
@@ -594,13 +596,46 @@ FROM ratings`,
     return entities
   }
 
+  @Get('/:id/charts/:chartType/records')
+  @Authorized()
+  public async addRecordGetKey(
+    @CurrentUser() user: IUser,
+    @Param('id') levelUid: string,
+    @Param('chartType') chartType: string,
+  ) {
+    const keyBuf = await randomBytesAsync(32)
+    await redis.setAsync(`levels:${levelUid}:charts:${chartType}:user:${user.id}:records_add`, keyBuf.toString('hex'))
+    console.log("Generated key: ", keyBuf)
+    return keyBuf
+  }
+
+  private static addRecordSecret: Buffer = Buffer.from('a71eb4fec8474a19cfdd669bde514169462fd2f9bed720f941d337fde536dc2e', 'hex')
   @Post('/:id/charts/:chartType/records')
   @Authorized()
-  public addRecord(
+  public async addRecord(
     @Param('id') id: string,
     @Param('chartType') chartType: string,
     @CurrentUser() user: IUser,
-    @Body() record: NewRecord) {
+    @Ctx() ctx: Context) {
+
+    const key: Buffer = Buffer.from(
+      await redis.getAsync(`levels:${id}:charts:${chartType}:user:${user.id}:records_add`),
+      'hex')
+
+    // console.assert(key.length === secret.length)
+    for (let i = 0; i < key.length; i++) {
+      // tslint:disable-next-line:no-bitwise
+      key[i] = key[i] ^ LevelController.addRecordSecret[i]
+      key[i] = key[i] + LevelController.addRecordSecret[i ^ 0b10110]
+    }
+
+    const iv = ctx.req.read(16)
+    const decipher = createDecipheriv('aes-256-cbc', key, iv)
+    let decrypted = decipher.update(ctx.req.read(), 'hex', 'utf8')
+    decrypted += decipher.final('utf8')
+
+    const record = JSON.parse(decrypted)
+
     const qb = this.db.createQueryBuilder()
     const chartQuery =
     qb.subQuery()
