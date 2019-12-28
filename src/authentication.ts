@@ -189,7 +189,7 @@ interface IProfile extends PassportProfile {
   language?: string,
   locale?: string,
 }
-function postExternalAuth(ctx: ParameterizedContext<any, IRouterParamContext<any, {}>>, next: () => void) {
+function postExternalAuth(ctx: Context, next: () => void) {
   return async (err: Error, user: User, info: IProfile) => {
     if (err) {
       ctx.throw(400, err.message)
@@ -257,13 +257,13 @@ export function useExternalAuth(app: Koa) {
   router
     .use(passportSession)
     .get('/facebook', (ctx, next) => {
-      return passport.authenticate('facebook', { scope: ['email'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('facebook', { scope: ['email'] }, postExternalAuth(ctx as unknown as Context, next))(ctx, next)
     })
     .get('/discord', (ctx, next) => {
-      return passport.authenticate('discord', { scope: ['email', 'identify'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('discord', { scope: ['email', 'identify'] }, postExternalAuth(ctx as unknown as Context, next))(ctx, next)
     })
     .get('/google', (ctx, next) => {
-      return passport.authenticate('google', { scope: ['email', 'profile'] }, postExternalAuth(ctx, next))(ctx, next)
+      return passport.authenticate('google', { scope: ['email', 'profile'] }, postExternalAuth(ctx as unknown as Context, next))(ctx, next)
     })
   app
     .use(router.routes())
