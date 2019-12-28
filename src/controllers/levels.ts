@@ -441,35 +441,49 @@ FROM ratings`,
     @Param('id') id: string,
     @CurrentUser() user: IUser,
     @BodyParam('rating', {required: true}) rating: number) {
-    if (!rating || rating > 10 || rating <= 0) {
-      throw new BadRequestError('Rating missing or out of range (0 - 10)')
-    }
     const qb = this.db.createQueryBuilder()
     const levelIdQuery = qb.subQuery()
       .createQueryBuilder()
       .select('id')
       .from(Level, 'level')
       .where('level.uid = :uid', {uid: id})
-    await qb
-      .insert()
-      .into(Rating)
-      .values({
-        levelId: () => `(${levelIdQuery.getQuery()})`,
-        userId: user.id,
-        rating,
-      })
-      .onConflict('ON CONSTRAINT "level_ratings_levelId_userId_key" DO UPDATE SET "rating" = :rating')
-      .setParameter('rating', rating)
-      .setParameters(levelIdQuery.getParameters())
-      .execute()
-      .catch((error) => {
-        if (error.column === 'levelId'
-        && error.table === 'level_ratings'
-        && error.code === '23502') {
-          throw new NotFoundError('The specified level does not exist!')
-        }
-        throw error
-      })
+    if (!rating) {
+      // Remove the rating
+      const results = await qb.delete()
+        .from(Rating)
+        .where(`"levelId"=(${levelIdQuery.getQuery()})`)
+        .andWhere('userId=:userId', { userId: user.id })
+        .setParameters(levelIdQuery.getParameters())
+        .execute()
+      if (results.affected === 0) {
+        throw new NotFoundError('The specified level does not exist!')
+      }
+    } else {
+      if (rating > 10 || rating <= 0) {
+        throw new BadRequestError('Rating missing or out of range (0 - 10)')
+      }
+      await qb
+        .insert()
+        .into(Rating)
+        .values({
+          levelId: () => `(${levelIdQuery.getQuery()})`,
+          userId: user.id,
+          rating,
+        })
+        .onConflict('ON CONSTRAINT "level_ratings_levelId_userId_key" DO UPDATE SET "rating" = :rating')
+        .setParameter('rating', rating)
+        .setParameters(levelIdQuery.getParameters())
+        .execute()
+        .catch((error) => {
+          if (error.column === 'levelId'
+            && error.table === 'level_ratings'
+            && error.code === '23502') {
+            throw new NotFoundError('The specified level does not exist!')
+          }
+          throw error
+        })
+    }
+
     await redis.delAsync(this.levelRatingCacheKey + id)
     return this.getRatings(id, user)
   }
