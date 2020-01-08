@@ -640,6 +640,26 @@ FROM ratings`,
       })
   }
 
+  @Get('/:id/resources')
+  @Authorized()
+  public getResourcesURL(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    return this.db.createQueryBuilder(Level, 'l')
+      .select('l.packagePath')
+      .where({ uid: levelId })
+      .getOne()
+      .then((a) => {
+        const path = a.packagePath
+        this.db.query(`\
+INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
+ON CONFLICT ("levelId", "userId")
+DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`, [levelId, user.id])
+        const signedURL =  signURL(conf.assetsURL, path, 3600)
+        return {
+          package: signedURL,
+        }
+      })
+  }
+
   @Get('/:id/package')
   @Redirect(':assetsURL/:path')
   @Authorized()
