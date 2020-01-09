@@ -210,8 +210,8 @@ export default class LevelController extends BaseController {
     @QueryParam('order') sortOrder: string = 'asc',
     @Ctx() ctx: Context) {
     const theSortOrder: 'DESC' | 'ASC' = (sortOrder.toUpperCase() === 'DESC') ? 'DESC' : 'ASC'
-    if (pageLimit > 30) {
-      pageLimit = 30
+    if (pageLimit > 200) {
+      pageLimit = 200
     } else if (pageLimit < 0) {
       pageLimit = 0
     }
@@ -441,35 +441,49 @@ FROM ratings`,
     @Param('id') id: string,
     @CurrentUser() user: IUser,
     @BodyParam('rating', {required: true}) rating: number) {
-    if (!rating || rating > 10 || rating <= 0) {
-      throw new BadRequestError('Rating missing or out of range (0 - 10)')
-    }
     const qb = this.db.createQueryBuilder()
     const levelIdQuery = qb.subQuery()
       .createQueryBuilder()
       .select('id')
       .from(Level, 'level')
       .where('level.uid = :uid', {uid: id})
-    await qb
-      .insert()
-      .into(Rating)
-      .values({
-        levelId: () => `(${levelIdQuery.getQuery()})`,
-        userId: user.id,
-        rating,
-      })
-      .onConflict('ON CONSTRAINT "level_ratings_levelId_userId_key" DO UPDATE SET "rating" = :rating')
-      .setParameter('rating', rating)
-      .setParameters(levelIdQuery.getParameters())
-      .execute()
-      .catch((error) => {
-        if (error.column === 'levelId'
-        && error.table === 'level_ratings'
-        && error.code === '23502') {
-          throw new NotFoundError('The specified level does not exist!')
-        }
-        throw error
-      })
+    if (!rating) {
+      // Remove the rating
+      const results = await qb.delete()
+        .from(Rating)
+        .where(`"levelId"=(${levelIdQuery.getQuery()})`)
+        .andWhere('userId=:userId', { userId: user.id })
+        .setParameters(levelIdQuery.getParameters())
+        .execute()
+      if (results.affected === 0) {
+        throw new NotFoundError('The specified level does not exist!')
+      }
+    } else {
+      if (rating > 10 || rating <= 0) {
+        throw new BadRequestError('Rating missing or out of range (0 - 10)')
+      }
+      await qb
+        .insert()
+        .into(Rating)
+        .values({
+          levelId: () => `(${levelIdQuery.getQuery()})`,
+          userId: user.id,
+          rating,
+        })
+        .onConflict('ON CONSTRAINT "level_ratings_levelId_userId_key" DO UPDATE SET "rating" = :rating')
+        .setParameter('rating', rating)
+        .setParameters(levelIdQuery.getParameters())
+        .execute()
+        .catch((error) => {
+          if (error.column === 'levelId'
+            && error.table === 'level_ratings'
+            && error.code === '23502') {
+            throw new NotFoundError('The specified level does not exist!')
+          }
+          throw error
+        })
+    }
+
     await redis.delAsync(this.levelRatingCacheKey + id)
     return this.getRatings(id, user)
   }
@@ -533,6 +547,12 @@ FROM ratings`,
     @QueryParam('page') page: number = 0,
     @QueryParam('user') user?: string,
     @QueryParam('userLimit') userLimit: number = 3) {
+    if (userLimit < 0) {
+      userLimit = 0
+    }
+    if (userLimit > 10) {
+      userLimit = 10
+    }
     let qb = this.queryLeaderboard(id, chartType)
     if (user) {
       const isUUID = validator.isUUID(user, '4')
@@ -542,17 +562,11 @@ FROM ratings`,
       // See https://github.com/typeorm/typeorm/issues/1116
       const orgQuery = qb.getQuery
       const orgParams = qb.getParameters
-      if (userLimit < 0) {
-        userLimit = 0
-      }
-      if (userLimit > 10) {
-        userLimit = 10
-      }
-      qb.getQuery =
-        () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= ${userLimit}`
+      qb.getQuery = () => `WITH lb AS (${orgQuery.call(qb)}) SELECT * FROM lb WHERE abs(rank - (${rankQuery})) <= :userLimit`
       qb.getParameters = () => {
         const a = orgParams.call(qb)
         a.user = user
+        a.userLimit = userLimit
         return a
       }
     } else {
@@ -623,6 +637,26 @@ FROM ratings`,
           throw new NotFoundError('The specified chart was not found.')
         }
         throw error
+      })
+  }
+
+  @Get('/:id/resources')
+  @Authorized()
+  public getResourcesURL(@Param('id') levelId: string, @CurrentUser() user: IUser) {
+    return this.db.createQueryBuilder(Level, 'l')
+      .select('l.packagePath')
+      .where({ uid: levelId })
+      .getOne()
+      .then((a) => {
+        const path = a.packagePath
+        this.db.query(`\
+INSERT INTO level_downloads ("levelId", "userId") VALUES ((SELECT id FROM levels WHERE uid=$1), $2)
+ON CONFLICT ("levelId", "userId")
+DO UPDATE SET "date"=NOW(), "count"=level_downloads."count"+1;`, [levelId, user.id])
+        const signedURL =  signURL(conf.assetsURL, path, 3600)
+        return {
+          package: signedURL,
+        }
       })
   }
 
