@@ -241,7 +241,8 @@ export default class LevelController extends BaseController {
         'levels.modificationDate',
         'levels.creationDate',
         'json_agg(charts ORDER BY charts.difficulty) as charts',
-        '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
+        '(SELECT (60 + avg(level_ratings.rating) * count(level_ratings.rating)) * 1.0 ' +
+        '/ (10 + count(level_ratings.rating)) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
         '(SELECT count(*) FROM level_downloads WHERE "levelId"=levels.id) as downloads',
         '(SELECT count(*) FROM records ' +
         'JOIN charts ON charts.id=records."chartId" ' +
