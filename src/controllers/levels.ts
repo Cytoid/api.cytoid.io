@@ -235,6 +235,7 @@ export default class LevelController extends BaseController {
         'levels.title',
         'levels.id',
         'levels.uid',
+        'levels.version',
         'levels.metadata',
         'bundle.content',
         'bundle.path',
