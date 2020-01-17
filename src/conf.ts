@@ -11,6 +11,7 @@ export interface IAppConfiguration extends IConfig {
   host: string
   port: number
   postgres: ConnectionOptions
+  mongo: string
   redis: ClientOpts
   secret: string
   jwtSecret: string

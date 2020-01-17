@@ -8,9 +8,17 @@ import conf from './conf'
 import * as models from './models'
 
 export const database = createConnection({
+  name: 'default',
   ...conf.postgres,
   entities: Object.values(models),
   logging: process.env.NODE_ENV === 'production' ? ['info'] : true,
+})
+
+export const mongo = createConnection({
+  name: 'data',
+  type: 'mongodb',
+  url: conf.mongo,
+  useUnifiedTopology: true,
 })
 
 import {createClient, RedisClient, RedisError} from 'redis'
@@ -30,9 +38,9 @@ export interface IAsyncRedisClient extends RedisClient {
   delAsync(key: string): Promise<number>
 }
 
-export const connectDatabase = database
-  .then(async (db) => {
-    logger.info('Connected to postgresql')
+export const connectDatabase = Promise.all([database, mongo])
+  .then(async ([db, mongodb]) => {
+    logger.info('Connected to databases')
     return registerDBTypes(db)
   })
   .catch((error) => {
