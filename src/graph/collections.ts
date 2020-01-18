@@ -2,6 +2,7 @@ import { UserInputError } from 'apollo-server-koa'
 import {FieldNode, GraphQLResolveInfo} from 'graphql'
 import { getManager, ObjectID } from 'typeorm'
 import Collection from '../models/collection'
+import Email from '../models/email'
 import { Level } from '../models/level'
 import User from '../models/user'
 
@@ -47,16 +48,40 @@ export const resolvers = {
   Collection: {
     owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
       const query = info.fieldNodes.find((field) => field.name.value === info.fieldName)
-      const fields = query.selectionSet.selections
-        .filter((selection) => selection.kind === 'Field')
-        .map((selection) => (selection as FieldNode).name.value)
+      const allFields = query.selectionSet.selections
+        .filter((selection) => selection.kind === 'Field') as [FieldNode]
+      const fields = allFields
+        .map((selection) => selection.name.value)
       if (fields.length === 0) {
         return {}
       }
       if (fields.length === 1 && fields[0] === 'id') {
         return { id: parent.ownerId }
       }
-      return db.getRepository(User).findOne(parent.ownerId, { select: fields as Array<keyof User> })
+      let qb = db.createQueryBuilder(User, 'users')
+        .select(fields.map((f) => 'users.' + f))
+        .where({ id: parent.ownerId })
+
+      // Join with emails
+      const emailFields = allFields.filter((f) => (f.name.value === 'email'))
+      if (emailFields.length > 0) {
+        const emailField = emailFields[0]
+        const emailSelections = emailField.selectionSet.selections.filter((f) => f.kind === 'Field') as [FieldNode]
+        const fieldNames = emailSelections.map((f) => f.name.value)
+        if (fieldNames.length === 0) {
+          // Do nothing
+        } else if (fieldNames.length === 1 && fieldNames[0] === 'address') {
+          // Do nothing
+        } else {
+          qb = qb.leftJoin('users.emailObj', 'emails')
+            .addSelect(fieldNames.map((f) => 'emails.' + f))
+        }
+      }
+      return qb.getOne()
+        .then((user) => {
+          user.emailObj = user.emailObj || {} as Email
+          user.emailObj.address = user.emailObj.address || user.email
+        })
     },
     levels(
       parent: Collection,

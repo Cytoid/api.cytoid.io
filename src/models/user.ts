@@ -3,15 +3,14 @@ import { createHash } from 'crypto'
 import {
   Column,
   CreateDateColumn,
-  Entity,
-  Unique, ManyToOne,
+  Entity, JoinColumn,
+  ManyToOne, OneToOne,
   PrimaryColumn,
-  PrimaryGeneratedColumn,
+  PrimaryGeneratedColumn, Unique,
 } from 'typeorm'
-import MailTransport, {ITransport as IMailTransport} from '../utils/mail'
-
 import config from '../conf'
 import PasswordManager from '../utils/password'
+import Email from './email'
 import File from './file'
 
 export interface IUser {
@@ -36,6 +35,12 @@ export default class User implements IUser {
   @Column({ unique: true })
   @Exclude()
   public email: string
+
+  @Type(() => Email)
+  @Exclude()
+  @OneToOne(() => Email, (email) => email, { nullable: true })
+  @JoinColumn({ name: 'email' })
+  public emailObj: Email
 
   @Type(() => File)
   @ManyToOne(() => File, (file) => file.path)
@@ -100,22 +105,6 @@ export default class User implements IUser {
       role: this.role,
     }
   }
-}
-
-@Entity('emails')
-export class Email {
-  @PrimaryColumn()
-  public address: string
-
-  @Column()
-  public verified: boolean
-
-  @Type(() => User)
-  @ManyToOne(() => User, (user) => user.id)
-  public owner: User
-
-  @Column()
-  public ownerId: string
 }
 
 @Unique(['provider', 'ownerId'])
