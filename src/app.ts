@@ -68,6 +68,11 @@ import * as graph from './graph'
 const server = new ApolloServer({
   typeDefs: graph.typeDefs,
   resolvers: graph.resolvers,
+  tracing: true,
+  engine: {
+    apiKey: conf.graphQLKey,
+    schemaTag: process.env.NODE_ENV,
+  },
 })
 server.applyMiddleware({
   app,

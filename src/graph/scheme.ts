@@ -27,7 +27,7 @@ type Collection {
   brief: String!
   description: String!
   owner: User
-  levels: [Level]
+  levels: [Level!]!
   creationDate: Date!
   modificationDate: Date!
 }

@@ -1,7 +1,8 @@
+import { UserInputError } from 'apollo-server-koa'
 import {FieldNode, GraphQLResolveInfo} from 'graphql'
 import { getManager, ObjectID } from 'typeorm'
-import { UserInputError } from 'apollo-server-koa'
 import Collection from '../models/collection'
+import { Level } from '../models/level'
 import User from '../models/user'
 
 const datastore = getManager('data')
@@ -37,6 +38,7 @@ export const resolvers = {
             brief: collection.brief || '',
             description: collection.description || '',
             ownerId: collection.ownerId,
+            levelIds: [],
           })
           return datastore.save(newCollection)
         })
@@ -55,6 +57,23 @@ export const resolvers = {
         return { id: parent.ownerId }
       }
       return db.getRepository(User).findOne(parent.ownerId, { select: fields as Array<keyof User> })
+    },
+    levels(
+      parent: Collection,
+      args: never,
+      context: any,
+      info: GraphQLResolveInfo): Array<Partial<Level>> | Promise<Array<Partial<Level>>> {
+      const query = info.fieldNodes.find((field) => field.name.value === info.fieldName)
+      const fields = query.selectionSet.selections
+        .filter((selection) => selection.kind === 'Field')
+        .map((selection) => (selection as FieldNode).name.value)
+      if (fields.length === 0) {
+        return []
+      }
+      if (fields.length === 1 && fields[0] === 'id') {
+        return parent.levelIds.map((id) => ({ id }))
+      }
+      return db.getRepository(Level).findByIds(parent.levelIds, { select: fields as Array<keyof Level>})
     },
   },
 }

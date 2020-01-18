@@ -34,5 +34,5 @@ export default class Collection {
   public modificationDate: Date
 
   @Column()
-  public levels: [number]
+  public levelIds: [number]
 }
