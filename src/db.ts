@@ -6,6 +6,7 @@ import registerDBTypes from './db-types'
 import conf from './conf'
 
 import * as models from './models'
+import * as mongoModels from './models/mongo'
 
 export const database = createConnection({
   name: 'default',
@@ -13,12 +14,12 @@ export const database = createConnection({
   entities: Object.values(models),
   logging: process.env.NODE_ENV === 'production' ? ['info'] : true,
 })
-
 export const mongo = createConnection({
   name: 'data',
   type: 'mongodb',
   url: conf.mongo,
   useUnifiedTopology: true,
+  entities: Object.values(mongoModels),
 })
 
 import {createClient, RedisClient, RedisError} from 'redis'
