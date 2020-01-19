@@ -31,7 +31,7 @@ type Mutation {
 type Collection {
   id: ID!
   uid: String!
-  coverURL: String
+  coverPath: String
   title: String!
   brief: String!
   description: String!

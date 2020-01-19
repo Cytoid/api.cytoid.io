@@ -224,7 +224,7 @@ export default class LevelController extends BaseController {
       duration: 'levels.duration',
       downloads: 'downloads',
       plays: 'plays',
-      rating: 'rating',
+      rating: 'aux_rating',
       difficulty: (sortOrder === 'asc' ? 'max' : 'min') + '(charts.difficulty)',
     }
     let query = this.db.createQueryBuilder(Level, 'levels')
@@ -243,7 +243,8 @@ export default class LevelController extends BaseController {
         'levels.creationDate',
         'json_agg(charts ORDER BY charts.difficulty) as charts',
         '(SELECT (60 + avg(level_ratings.rating) * count(level_ratings.rating)) * 1.0 ' +
-        '/ (10 + count(level_ratings.rating)) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
+        '/ (10 + count(level_ratings.rating)) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as aux_rating',
+        '(SELECT avg(level_ratings.rating) FROM level_ratings WHERE level_ratings."levelId"=levels.id) as rating',
         '(SELECT count(*) FROM level_downloads WHERE "levelId"=levels.id) as downloads',
         '(SELECT count(*) FROM records ' +
         'JOIN charts ON charts.id=records."chartId" ' +
