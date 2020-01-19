@@ -5,7 +5,7 @@ scalar FileSize
 scalar Date
 
 type Query {
-  collection(id: ID!): Collection
+  collection(id: ID, uid: String): Collection
 }
 
 type ResourceMetaProperty {
@@ -58,6 +58,12 @@ enum ResourceState {
   UNLISTED
 }
 
+type LevelBundle {
+  music: String
+  musicPreview: String
+  backgroundImage: String
+}
+
 type Level {
   id: Int!
   version: Int!
@@ -74,6 +80,7 @@ type Level {
   owner: User
   creationDate: Date!
   modificationDate: Date!
+  bundle: LevelBundle
 }
 
 type Email {

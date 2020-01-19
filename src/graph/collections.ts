@@ -5,7 +5,13 @@ import Collection from '../models/collection'
 import Email from '../models/email'
 import { Level } from '../models/level'
 import User from '../models/user'
-import {GraphQLJoin, GraphQLJoinMany, GraphQLJoinProperty} from '../utils/graph_joiner'
+import {
+  GraphQLFieldNames,
+  GraphQLFieldNamesForKeyPath,
+  GraphQLJoin,
+  GraphQLJoinMany,
+  GraphQLJoinProperty
+} from '../utils/graph_joiner'
 import {FitUserEmail} from './users'
 
 const datastore = getManager('data')
@@ -13,8 +19,23 @@ const db = getManager()
 
 export const resolvers = {
   Query: {
-    collection(parent: never, { id }: { id: string }, context: any, info: GraphQLResolveInfo) {
-      return datastore.getMongoRepository(Collection).findOne(id)
+    collection(
+      parent: never,
+      { id, uid }: {
+        id: string,
+        uid: string,
+      },
+      context: any,
+      info: GraphQLResolveInfo,
+    ) {
+
+      if (id) {
+        return datastore.getMongoRepository(Collection).findOne(id)
+      }
+      if (uid) {
+        return datastore.getMongoRepository(Collection).findOne({ uid })
+      }
+      return null
     },
   },
   Mutation: {
@@ -55,6 +76,9 @@ export const resolvers = {
         return result
       }
       GraphQLJoinProperty(info, qb, 'email', 'address', 'emailObj', 'emails')
+      if (GraphQLFieldNames(info).find((i) => i.name.value === 'avatarURL')) {
+        qb.addSelect(['users.email', 'users.avatarPath'])
+      }
       return qb.getOne()
         .then(FitUserEmail)
     },
@@ -69,7 +93,13 @@ export const resolvers = {
         return result
       }
       GraphQLJoinProperty(info, qb, 'owner', 'id', 'levels.owner', 'users')
+      if (GraphQLFieldNamesForKeyPath(info, 'owner').find((i) => i.name.value === 'avatarURL')) {
+        qb.addSelect(['users.email', 'users.avatarPath'])
+      }
       GraphQLJoinProperty(info, qb, 'owner.email', 'address', 'users.emailObj', 'emails')
+      if (GraphQLFieldNames(info).find((i) => i.name.value === 'bundle')) {
+        qb.leftJoin('levels.bundle', 'bundle').addSelect(['bundle.path', 'bundle.content'])
+      }
       return qb.getMany()
         .then((levels) => {
           for (const level of levels) {

@@ -1,10 +1,31 @@
 import {FieldNode, GraphQLResolveInfo} from 'graphql'
 import {SelectQueryBuilder} from 'typeorm'
 
-function fieldNames(info: GraphQLResolveInfo) {
+export function GraphQLFieldNames(info: GraphQLResolveInfo) {
   const query = info.fieldNodes.find((field) => field.name.value === info.fieldName)
   return query.selectionSet.selections
     .filter((selection) => selection.kind === 'Field') as [FieldNode]
+}
+
+export function GraphQLFieldNamesForKeyPath(info: GraphQLResolveInfo, keypath: string) {
+  const keys = keypath.split('.')
+  let fieldNodes: [FieldNode] = info.fieldNodes
+    .find((field) => field.name.value === info.fieldName)
+    .selectionSet
+    .selections
+    .filter((selection) => selection.kind === 'Field') as [FieldNode]
+
+  for (const key of keys) {
+    const fieldNode = fieldNodes.find((f) => (f.name.value === key))
+    if (!fieldNode) {
+      return null
+    }
+    fieldNodes = fieldNode
+      .selectionSet
+      .selections
+      .filter((selection) => selection.kind === 'Field') as [FieldNode]
+  }
+  return fieldNodes
 }
 
 export function GraphQLJoin<PK, Entity>(
@@ -12,7 +33,9 @@ export function GraphQLJoin<PK, Entity>(
   qb: SelectQueryBuilder<Entity>,
   primaryKey: string,
   value: PK) {
-  const fields = fieldNames(info).map((selection) => selection.name.value)
+  const fields = GraphQLFieldNames(info)
+    .map((selection) => selection.name.value)
+    .filter((f) => !f.startsWith('__'))
   if (fields.length === 0) {
     return {}
   }
@@ -29,7 +52,9 @@ export function GraphQLJoinMany<PK, Entity>(
   qb: SelectQueryBuilder<Entity>,
   primaryKey: string,
   values: [PK]) {
-  const fields = fieldNames(info).map((selection) => selection.name.value)
+  const fields = GraphQLFieldNames(info)
+    .map((selection) => selection.name.value)
+    .filter((f) => !f.startsWith('__'))
   if (fields.length === 0) {
     return []
   }
@@ -37,6 +62,7 @@ export function GraphQLJoinMany<PK, Entity>(
     return values.map((id) => ({ [primaryKey]: id }))
   }
   qb.select(fields.map((f) => qb.alias + '.' + f))
+    .addSelect(qb.alias + '.' + primaryKey)
     .whereInIds(values)
   return null
 }
@@ -48,24 +74,13 @@ export function GraphQLJoinProperty<PK, Entity>(
   primaryKey: string,
   foreignKey: string,
   alias: string) {
-  const keys = keypath.split('.')
-  let fieldNodes: [FieldNode] = info.fieldNodes
-    .find((field) => field.name.value === info.fieldName)
-    .selectionSet
-    .selections
-    .filter((selection) => selection.kind === 'Field') as [FieldNode]
-
-  for (const key of keys) {
-    const fieldNode = fieldNodes.find((f) => (f.name.value === key))
-    if (!fieldNode) {
-      return
-    }
-    fieldNodes = fieldNode
-      .selectionSet
-      .selections
-      .filter((selection) => selection.kind === 'Field') as [FieldNode]
+  const fieldNodes = GraphQLFieldNamesForKeyPath(info, keypath)
+  if (!fieldNodes) {
+    return
   }
-  const fields = fieldNodes.map((f) => f.name.value)
+  const fields = fieldNodes
+    .map((f) => f.name.value)
+    .filter((f) => !f.startsWith('__'))
   if (fields.length === 0) {
     return
   } else if (fields.length === 1 && fields[0] === primaryKey) {
