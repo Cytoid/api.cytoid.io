@@ -120,6 +120,9 @@ export default class FileController extends BaseController {
     }
     await redis.delAsync(redisKey)
     const newFile = new File(path, sessionData.type)
+    assetBucket.file(path).setMetadata({
+      cacheControl: 'public, max-age=31536000',
+    })
     newFile.ownerId = sessionData.ownerId
     await this.db.save(newFile, {transaction: false})
     const handler = FileUploadHandlers[sessionData.type]
