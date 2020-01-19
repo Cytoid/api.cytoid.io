@@ -73,6 +73,8 @@ const server = new ApolloServer({
     apiKey: conf.graphQLKey,
     schemaTag: process.env.NODE_ENV,
   },
+  introspection: true,
+  playground: true,
 })
 server.applyMiddleware({
   app,

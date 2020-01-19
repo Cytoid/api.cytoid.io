@@ -27,12 +27,21 @@ export default class Collection {
   @Column()
   public ownerId: string
 
-  @CreateDateColumn({ name: 'date_created' })
+  @CreateDateColumn()
   public creationDate: Date
 
-  @UpdateDateColumn({ name: 'date_modified' })
+  @UpdateDateColumn()
   public modificationDate: Date
 
   @Column()
   public levelIds: [number]
+
+  @Column()
+  public tags: [string]
+
+  @Column()
+  public state: string
+
+  @Column()
+  public metadata: any
 }

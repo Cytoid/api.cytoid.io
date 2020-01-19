@@ -11,6 +11,7 @@ import File from '../../models/file'
 import {IUser} from '../../models/user'
 import BaseController from '../base'
 import AvatarHandler from './avatar'
+import CoverHandler from './covers'
 import HeaderHandler from './headers'
 import LevelHandler from './levels'
 
@@ -41,10 +42,12 @@ export interface IFileUploadHandler {
   callback?: (user: IUser, session: IFileUploadSessionData, extra?: any) => any
 }
 
+// Register file upload handlers here
 const FileUploadHandlers: { [key: string]: IFileUploadHandler } = {
   packages: LevelHandler,
   avatar: AvatarHandler,
   headers: HeaderHandler,
+  covers: CoverHandler,
 }
 
 export interface IFileUploadSessionData {

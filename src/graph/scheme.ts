@@ -8,6 +8,15 @@ type Query {
   collection(id: ID!): Collection
 }
 
+type ResourceMetaProperty {
+  artist: String!
+  source: String
+}
+
+type ResourceMeta {
+  cover: ResourceMetaProperty
+}
+
 type Mutation {
   createCollection(
     uid: String!
@@ -16,7 +25,7 @@ type Mutation {
     title: String
     brief: String
     description: String
-   ): Collection
+  ): Collection
 }
 
 type Collection {
@@ -30,6 +39,9 @@ type Collection {
   levels: [Level!]!
   creationDate: Date!
   modificationDate: Date!
+  tags: [String!]!
+  state: ResourceState!
+  metadata: ResourceMeta!
 }
 
 type LevelMeta {
@@ -40,7 +52,7 @@ type LevelMeta {
   storyboarder: String
 }
 
-enum LevelState {
+enum ResourceState {
   PRIVATE
   PUBLIC
   UNLISTED
@@ -55,7 +67,7 @@ type Level {
   duration: Float!
   size: FileSize!
   description: String!
-  state: LevelState!
+  state: ResourceState!
   censored: String
   tags: [String!]!
   category: [String!]!
