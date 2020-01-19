@@ -10,7 +10,8 @@
     "baseUrl": "./src",
     "noImplicitAny": true,
     "noImplicitReturns": true,
-    "noImplicitThis": true
+    "noImplicitThis": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "src/**/*"
