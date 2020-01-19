@@ -65,6 +65,10 @@ export class Level {
   @Column({ default: false, nullable: true })
   public published?: boolean
 
+  // Alias of published
+  @Column({ default: false, nullable: true, name: 'published' })
+  public state?: boolean
+
   @Column('varchar',  {nullable: true})
   public censored?: string
 

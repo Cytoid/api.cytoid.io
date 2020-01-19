@@ -5,6 +5,8 @@ import Collection from '../models/collection'
 import Email from '../models/email'
 import { Level } from '../models/level'
 import User from '../models/user'
+import {GraphQLJoin, GraphQLJoinMany, GraphQLJoinProperty} from '../utils/graph_joiner'
+import {FitUserEmail} from './users'
 
 const datastore = getManager('data')
 const db = getManager()
@@ -47,58 +49,34 @@ export const resolvers = {
   },
   Collection: {
     owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
-      const query = info.fieldNodes.find((field) => field.name.value === info.fieldName)
-      const allFields = query.selectionSet.selections
-        .filter((selection) => selection.kind === 'Field') as [FieldNode]
-      const fields = allFields
-        .map((selection) => selection.name.value)
-      if (fields.length === 0) {
-        return {}
+      const qb = db.createQueryBuilder(User, 'users')
+      const result = GraphQLJoin(info, qb, 'id', parent.ownerId)
+      if (result) {
+        return result
       }
-      if (fields.length === 1 && fields[0] === 'id') {
-        return { id: parent.ownerId }
-      }
-      let qb = db.createQueryBuilder(User, 'users')
-        .select(fields.map((f) => 'users.' + f))
-        .where({ id: parent.ownerId })
-
-      // Join with emails
-      const emailFields = allFields.filter((f) => (f.name.value === 'email'))
-      if (emailFields.length > 0) {
-        const emailField = emailFields[0]
-        const emailSelections = emailField.selectionSet.selections.filter((f) => f.kind === 'Field') as [FieldNode]
-        const fieldNames = emailSelections.map((f) => f.name.value)
-        if (fieldNames.length === 0) {
-          // Do nothing
-        } else if (fieldNames.length === 1 && fieldNames[0] === 'address') {
-          // Do nothing
-        } else {
-          qb = qb.leftJoin('users.emailObj', 'emails')
-            .addSelect(fieldNames.map((f) => 'emails.' + f))
-        }
-      }
+      GraphQLJoinProperty(info, qb, 'email', 'address', 'emailObj', 'emails')
       return qb.getOne()
-        .then((user) => {
-          user.emailObj = user.emailObj || {} as Email
-          user.emailObj.address = user.emailObj.address || user.email
-        })
+        .then(FitUserEmail)
     },
     levels(
       parent: Collection,
       args: never,
       context: any,
       info: GraphQLResolveInfo): Array<Partial<Level>> | Promise<Array<Partial<Level>>> {
-      const query = info.fieldNodes.find((field) => field.name.value === info.fieldName)
-      const fields = query.selectionSet.selections
-        .filter((selection) => selection.kind === 'Field')
-        .map((selection) => (selection as FieldNode).name.value)
-      if (fields.length === 0) {
-        return []
+      const qb = db.createQueryBuilder(Level, 'levels')
+      const result = GraphQLJoinMany(info, qb, 'id', parent.levelIds)
+      if (result) {
+        return result
       }
-      if (fields.length === 1 && fields[0] === 'id') {
-        return parent.levelIds.map((id) => ({ id }))
-      }
-      return db.getRepository(Level).findByIds(parent.levelIds, { select: fields as Array<keyof Level>})
+      GraphQLJoinProperty(info, qb, 'owner', 'id', 'levels.owner', 'users')
+      GraphQLJoinProperty(info, qb, 'owner.email', 'address', 'users.emailObj', 'emails')
+      return qb.getMany()
+        .then((levels) => {
+          for (const level of levels) {
+            FitUserEmail(level.owner)
+          }
+          return levels
+        })
     },
   },
 }

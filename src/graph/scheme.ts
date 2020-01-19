@@ -47,7 +47,7 @@ enum LevelState {
 }
 
 type Level {
-  id: ID!
+  id: Int!
   version: Int!
   uid: String!
   title: String!
