@@ -19,7 +19,7 @@ export default class Collection {
   public title: string
 
   @Column()
-  public brief: string
+  public slogan: string
 
   @Column()
   public description: string
@@ -34,10 +34,10 @@ export default class Collection {
   public modificationDate: Date
 
   @Column()
-  public levelIds: [number]
+  public levelIds: number[]
 
   @Column()
-  public tags: [string]
+  public tags: string[]
 
   @Column()
   public state: string

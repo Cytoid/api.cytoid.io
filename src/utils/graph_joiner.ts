@@ -55,7 +55,7 @@ export function GraphQLJoinMany<PK, Entity>(
   info: GraphQLResolveInfo,
   qb: SelectQueryBuilder<Entity>,
   primaryKey: string,
-  values: [PK],
+  values: PK[],
   fieldFilter: ((fields: string[]) => string[]) = null) {
   let fields = GraphQLFieldNames(info)
     .map((selection) => selection.name.value)

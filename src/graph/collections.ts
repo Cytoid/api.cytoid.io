@@ -1,8 +1,7 @@
 import { UserInputError } from 'apollo-server-koa'
-import {FieldNode, GraphQLResolveInfo} from 'graphql'
-import { getManager, ObjectID } from 'typeorm'
+import { GraphQLResolveInfo} from 'graphql'
+import { getManager } from 'typeorm'
 import Collection from '../models/collection'
-import Email from '../models/email'
 import { Level } from '../models/level'
 import User from '../models/user'
 import {
@@ -10,8 +9,9 @@ import {
   GraphQLFieldNamesForKeyPath,
   GraphQLJoin,
   GraphQLJoinMany,
-  GraphQLJoinProperty
+  GraphQLJoinProperty,
 } from '../utils/graph_joiner'
+import OrderObjectsByList from '../utils/order_objects_by_list'
 import {FitUserEmail} from './users'
 
 const datastore = getManager('data')
@@ -59,7 +59,7 @@ export const resolvers = {
           const newCollection =  datastore.create(Collection, {
             uid: collection.uid,
             title: collection.title || 'Untitled',
-            brief: collection.brief || '',
+            slogan: collection.slogan || '',
             description: collection.description || '',
             ownerId: collection.ownerId,
             levelIds: [],
@@ -76,7 +76,7 @@ export const resolvers = {
         qb,
         'id',
         parent.ownerId,
-        (f) => f.filter((a) => a !== 'avatarURL')
+        (f) => f.filter((a) => a !== 'avatarURL'),
       )
       if (result) {
         return result
@@ -90,11 +90,16 @@ export const resolvers = {
     },
     levels(
       parent: Collection,
-      args: never,
+      { limit }: { limit: number },
       context: any,
       info: GraphQLResolveInfo): Array<Partial<Level>> | Promise<Array<Partial<Level>>> {
       const qb = db.createQueryBuilder(Level, 'levels')
-      const result = GraphQLJoinMany(info, qb, 'id', parent.levelIds)
+
+      let levelIds = parent.levelIds
+      if (limit) {
+        levelIds = levelIds.slice(0, limit)
+      }
+      const result = GraphQLJoinMany(info, qb, 'id', levelIds)
       if (result) {
         return result
       }
@@ -105,7 +110,7 @@ export const resolvers = {
         'id',
         'levels.owner',
         'users',
-        (f) => f.filter((a) => a !== 'avatarURL')
+        (f) => f.filter((a) => a !== 'avatarURL'),
       )
 
       const ownerFieldNames = GraphQLFieldNamesForKeyPath(info, 'owner')
@@ -116,13 +121,16 @@ export const resolvers = {
       if (GraphQLFieldNames(info).find((i) => i.name.value === 'bundle')) {
         qb.leftJoin('levels.bundle', 'bundle').addSelect(['bundle.path', 'bundle.content'])
       }
-      return qb.getMany()
+      return  qb.getMany()
         .then((levels) => {
-          for (const level of levels) {
-            FitUserEmail(level.owner)
+          for (const l of levels) {
+            FitUserEmail(l.owner)
           }
-          return levels
+          return OrderObjectsByList(levels, levelIds, 'id')
         })
+    },
+    levelCount(parent: Collection) {
+      return parent.levelIds.length
     },
   },
 }

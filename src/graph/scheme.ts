@@ -23,7 +23,7 @@ type Mutation {
     ownerId: ID!
     coverPath: ID
     title: String
-    brief: String
+    slogan: String
     description: String
   ): Collection
 }
@@ -33,10 +33,11 @@ type Collection {
   uid: String!
   coverPath: String
   title: String!
-  brief: String!
+  slogan: String!
   description: String!
   owner: User
-  levels: [Level!]!
+  levelCount: Int!
+  levels(limit: Int): [Level!]!
   creationDate: Date!
   modificationDate: Date!
   tags: [String!]!
