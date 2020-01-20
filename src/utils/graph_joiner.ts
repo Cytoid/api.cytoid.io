@@ -32,10 +32,14 @@ export function GraphQLJoin<PK, Entity>(
   info: GraphQLResolveInfo,
   qb: SelectQueryBuilder<Entity>,
   primaryKey: string,
-  value: PK) {
-  const fields = GraphQLFieldNames(info)
+  value: PK,
+  fieldFilter: ((fields: string[]) => string[]) = null) {
+  let fields = GraphQLFieldNames(info)
     .map((selection) => selection.name.value)
     .filter((f) => !f.startsWith('__'))
+  if (fieldFilter) {
+    fields = fieldFilter(fields)
+  }
   if (fields.length === 0) {
     return {}
   }
@@ -51,10 +55,14 @@ export function GraphQLJoinMany<PK, Entity>(
   info: GraphQLResolveInfo,
   qb: SelectQueryBuilder<Entity>,
   primaryKey: string,
-  values: [PK]) {
-  const fields = GraphQLFieldNames(info)
+  values: [PK],
+  fieldFilter: ((fields: string[]) => string[]) = null) {
+  let fields = GraphQLFieldNames(info)
     .map((selection) => selection.name.value)
     .filter((f) => !f.startsWith('__'))
+  if (fieldFilter) {
+    fields = fieldFilter(fields)
+  }
   if (fields.length === 0) {
     return []
   }
@@ -73,14 +81,20 @@ export function GraphQLJoinProperty<PK, Entity>(
   keypath: string,
   primaryKey: string,
   foreignKey: string,
-  alias: string) {
+  alias: string,
+  fieldFilter: ((fields: string[]) => string[]) = null) {
   const fieldNodes = GraphQLFieldNamesForKeyPath(info, keypath)
   if (!fieldNodes) {
     return
   }
-  const fields = fieldNodes
+  let fields = fieldNodes
     .map((f) => f.name.value)
     .filter((f) => !f.startsWith('__'))
+
+  if (fieldFilter) {
+    fields = fieldFilter(fields)
+  }
+
   if (fields.length === 0) {
     return
   } else if (fields.length === 1 && fields[0] === primaryKey) {

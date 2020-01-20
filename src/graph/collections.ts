@@ -71,7 +71,13 @@ export const resolvers = {
   Collection: {
     owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
       const qb = db.createQueryBuilder(User, 'users')
-      const result = GraphQLJoin(info, qb, 'id', parent.ownerId)
+      const result = GraphQLJoin(
+        info,
+        qb,
+        'id',
+        parent.ownerId,
+        (f) => f.filter((a) => a !== 'avatarURL')
+      )
       if (result) {
         return result
       }
@@ -92,8 +98,18 @@ export const resolvers = {
       if (result) {
         return result
       }
-      GraphQLJoinProperty(info, qb, 'owner', 'id', 'levels.owner', 'users')
-      if (GraphQLFieldNamesForKeyPath(info, 'owner').find((i) => i.name.value === 'avatarURL')) {
+      GraphQLJoinProperty(
+        info,
+        qb,
+        'owner',
+        'id',
+        'levels.owner',
+        'users',
+        (f) => f.filter((a) => a !== 'avatarURL')
+      )
+
+      const ownerFieldNames = GraphQLFieldNamesForKeyPath(info, 'owner')
+      if (ownerFieldNames && ownerFieldNames.find((i) => i.name.value === 'avatarURL')) {
         qb.addSelect(['users.email', 'users.avatarPath'])
       }
       GraphQLJoinProperty(info, qb, 'owner.email', 'address', 'users.emailObj', 'emails')
