@@ -10,9 +10,9 @@ import {
   GraphQLFieldNamesForKeyPath,
   GraphQLJoin,
   GraphQLJoinMany,
-  GraphQLJoinProperty
+  GraphQLJoinProperty,
 } from '../utils/graph_joiner'
-import {FitUserEmail} from './users'
+import { FitUserEmail, Join as JoinUser } from './users'
 
 const datastore = getManager('data')
 const db = getManager()
@@ -69,19 +69,7 @@ export const resolvers = {
     },
   },
   Collection: {
-    owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
-      const qb = db.createQueryBuilder(User, 'users')
-      const result = GraphQLJoin(info, qb, 'id', parent.ownerId)
-      if (result) {
-        return result
-      }
-      GraphQLJoinProperty(info, qb, 'email', 'address', 'emailObj', 'emails')
-      if (GraphQLFieldNames(info).find((i) => i.name.value === 'avatarURL')) {
-        qb.addSelect(['users.email', 'users.avatarPath'])
-      }
-      return qb.getOne()
-        .then(FitUserEmail)
-    },
+    owner: JoinUser('ownerId'),
     levels(
       parent: Collection,
       args: never,
