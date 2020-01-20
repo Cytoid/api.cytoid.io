@@ -62,12 +62,8 @@ export default class User implements IUser {
   public role: string
 
   @Expose()
-  @Column('varchar', { name: 'avatarPath' })
   public get avatarURL(): string {
     return this.getAvatarURL(512)
-  }
-  public set avatarURL(val: string) {
-    // do nothing
   }
 
   public getAvatarURL(size: number) {
