@@ -1,6 +1,7 @@
 import { join } from 'path'
 import {Level} from '../models'
 import {ILevelBundle} from '../models/level'
+import conf from '../conf'
 
 export const resolvers = {
   Level: {
@@ -16,13 +17,13 @@ export const resolvers = {
   },
   LevelBundle: {
     backgroundImage(parent: ILevelBundle) {
-      return join(parent.path, parent.content.background)
+      return conf.assetsURL + '/' + join(parent.path, parent.content.background)
     },
     music(parent: ILevelBundle) {
-      return join(parent.path, parent.content.music)
+      return conf.assetsURL + '/' + join(conf.assetsURL, parent.path, parent.content.music)
     },
     musicPreview(parent: ILevelBundle) {
-      return join(parent.path, parent.content.music_preview)
+      return conf.assetsURL + '/' + join(conf.assetsURL, parent.path, parent.content.music_preview)
     },
   },
 }

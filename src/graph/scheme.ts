@@ -9,8 +9,9 @@ type Query {
 }
 
 type ResourceMetaProperty {
-  artist: String!
-  source: String
+  name: String
+  localized_name: String
+  url: String
 }
 
 type ResourceMeta {
@@ -47,10 +48,10 @@ type Collection {
 
 type LevelMeta {
   title_localized: String
-  artist: String
-  illustrator: String
-  charter: String
-  storyboarder: String
+  artist: ResourceMetaProperty
+  illustrator: ResourceMetaProperty
+  charter: ResourceMetaProperty
+  storyboarder: ResourceMetaProperty
 }
 
 enum ResourceState {
