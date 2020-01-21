@@ -1,5 +1,23 @@
+import { gql } from 'apollo-server-koa'
 import Email from '../models/email'
 import User from '../models/user'
+
+export const typeDefs = gql`
+type Email {
+  address: String!
+  verified: Boolean!
+}
+
+type User {
+  id: ID!
+  uid: String
+  name: String
+  email: Email
+  registrationDate: Date
+  role: String!
+  avatarURL: String!
+}
+`
 
 export const resolvers = {
   User: {

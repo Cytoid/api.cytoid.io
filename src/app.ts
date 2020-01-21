@@ -63,11 +63,14 @@ app.use(morgan('combined', {
 }))
 
 import { ApolloServer } from 'apollo-server-koa'
-
 import * as graph from './graph'
+import SQLJoiner from './graph/SQLJoiner'
 const server = new ApolloServer({
   typeDefs: graph.typeDefs,
   resolvers: graph.resolvers,
+  schemaDirectives: {
+    table: SQLJoiner,
+  },
   tracing: true,
   engine: {
     apiKey: conf.graphQLKey,

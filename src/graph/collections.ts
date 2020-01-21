@@ -1,4 +1,5 @@
 import { UserInputError } from 'apollo-server-koa'
+import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
 import { getManager } from 'typeorm'
 import Collection from '../models/collection'
@@ -16,6 +17,40 @@ import {FitUserEmail} from './users'
 
 const datastore = getManager('data')
 const db = getManager()
+
+export const typeDefs = gql`
+extend type Query {
+  collection(id: ID, uid: String): Collection
+}
+
+extend type Mutation {
+  createCollection(
+    uid: String!
+    ownerId: ID!
+    coverPath: ID
+    title: String
+    slogan: String
+    description: String
+  ): Collection
+}
+
+type Collection {
+  id: ID!
+  uid: String!
+  coverPath: String
+  title: String!
+  slogan: String!
+  description: String!
+  owner: User
+  levelCount: Int!
+  levels(limit: Int): [Level!]! @table
+  creationDate: Date!
+  modificationDate: Date!
+  tags: [String!]!
+  state: ResourceState!
+  metadata: ResourceMeta!
+}
+`
 
 export const resolvers = {
   Query: {
@@ -121,7 +156,7 @@ export const resolvers = {
       if (GraphQLFieldNames(info).find((i) => i.name.value === 'bundle')) {
         qb.leftJoin('levels.bundle', 'bundle').addSelect(['bundle.path', 'bundle.content'])
       }
-      return  qb.getMany()
+      return qb.getMany()
         .then((levels) => {
           for (const l of levels) {
             FitUserEmail(l.owner)

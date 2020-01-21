@@ -1,6 +1,7 @@
 import * as collections from './collections'
-import * as users from './users'
 import * as levels from './levels'
+import baseTypes from './scheme'
+import * as users from './users'
 
 export const resolvers = [
   collections.resolvers,
@@ -8,4 +9,9 @@ export const resolvers = [
   levels.resolvers,
 ]
 
-export { default as typeDefs } from './scheme'
+export const typeDefs = [
+  collections.typeDefs,
+  levels.typeDefs,
+  users.typeDefs,
+  baseTypes,
+]
