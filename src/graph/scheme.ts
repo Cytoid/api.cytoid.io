@@ -9,10 +9,12 @@ type Mutation
 
 directive @column(
   name: String
+  primary: Boolean
 ) on FIELD_DEFINITION
 
 directive @table(
-  name: String
+  name: String!
+  field: String!
 ) on FIELD_DEFINITION
 
 

@@ -41,9 +41,9 @@ type Collection {
   title: String!
   slogan: String!
   description: String!
-  owner: User
+  owner: User @table(name: "users", field: "ownerId")
   levelCount: Int!
-  levels(limit: Int): [Level!]! @table
+  levels(limit: Int): [Level!]!
   creationDate: Date!
   modificationDate: Date!
   tags: [String!]!
@@ -105,23 +105,7 @@ export const resolvers = {
   },
   Collection: {
     owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
-      const qb = db.createQueryBuilder(User, 'users')
-      const result = GraphQLJoin(
-        info,
-        qb,
-        'id',
-        parent.ownerId,
-        (f) => f.filter((a) => a !== 'avatarURL'),
-      )
-      if (result) {
-        return result
-      }
-      GraphQLJoinProperty(info, qb, 'email', 'address', 'emailObj', 'emails')
-      if (GraphQLFieldNames(info).find((i) => i.name.value === 'avatarURL')) {
-        qb.addSelect(['users.email', 'users.avatarPath'])
-      }
-      return qb.getOne()
-        .then(FitUserEmail)
+      return db.createQueryBuilder(User, 'users')
     },
     levels(
       parent: Collection,

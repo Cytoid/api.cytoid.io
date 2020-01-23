@@ -9,13 +9,13 @@ type Email {
 }
 
 type User {
-  id: ID!
-  uid: String
-  name: String
+  id: ID! @column(primary: true)
+  uid: String @column
+  name: String @column
   email: Email
-  registrationDate: Date
-  role: String!
-  avatarURL: String!
+  registrationDate: Date @column
+  role: String! @column
+  avatarURL: String! @column(name: "avatarPath")
 }
 `
 
