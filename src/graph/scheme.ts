@@ -17,6 +17,9 @@ directive @table(
   field: String!
 ) on FIELD_DEFINITION
 
+directive @relation(
+  name: String!
+) on FIELD_DEFINITION
 
 
 type ResourceMetaProperty {
