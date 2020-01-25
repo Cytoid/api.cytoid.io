@@ -1,22 +1,46 @@
 import { SchemaDirectiveVisitor } from 'apollo-server-koa'
 import {
+  assertListType, assertNonNullType,
   assertObjectType, BooleanValueNode, FieldDefinitionNode, FieldNode,
   GraphQLField,
-  GraphQLInterfaceType,
+  GraphQLInterfaceType, GraphQLLeafType, GraphQLList, GraphQLNonNull,
   GraphQLObjectType,
   GraphQLResolveInfo, NamedTypeNode, SelectionNode,
   StringValueNode,
 } from 'graphql'
 import {SelectQueryBuilder} from 'typeorm'
 
-export default class SQLJoiner extends SchemaDirectiveVisitor {
-  private primaryFields: Map<string, string> = new Map()
+export class SQLToOneJoiner extends SchemaDirectiveVisitor {
+  protected primaryFields: Map<string, string> = new Map()
 
   // joinTable.get('graph relation name').get('graph field name')
-  private joinTable: Map<string, Map<string, string>> = new Map()
-  private tableNames: Map<string, string> = new Map()
+  protected joinTable: Map<string, Map<string, string>> = new Map()
+  protected tableNames: Map<string, string> = new Map()
 
-  private join(type: GraphQLObjectType, tableName: string) {
+  public visitFieldDefinition(
+    field: GraphQLField<any, any>,
+    details: { objectType: GraphQLObjectType | GraphQLInterfaceType },
+    ): GraphQLField<any, any> | void | null {
+    const tableName = this.args.name
+    const propertyFieldName = this.args.field
+    const type = field.type as GraphQLObjectType
+    assertObjectType(field.type)
+    this.join(type, tableName)
+    const originalResolve = field.resolve
+    field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
+      const qb: SelectQueryBuilder<any> =  originalResolve(source, args, context, info)
+      qb.select([])
+      this.selectFromFields(
+        qb,
+        info.fieldNodes.find((f) => f.name.value === info.fieldName),
+        type)
+      return qb
+        .where({ [this.primaryFields.get(type.name)]: source[propertyFieldName] })
+        .getOne()
+    }
+  }
+
+  protected join(type: GraphQLObjectType, tableName: string) {
     this.tableNames.set(type.name, tableName)
     let joinTable: Map<string, string>
     if (this.joinTable.has(type.name)) {
@@ -49,28 +73,38 @@ export default class SQLJoiner extends SchemaDirectiveVisitor {
     }
   }
 
-  private selectFromFields(qb: SelectQueryBuilder<any>, fieldNode: FieldNode, type: GraphQLObjectType) {
+  protected selectFromFields(qb: SelectQueryBuilder<any>, fieldNode: FieldNode, type: GraphQLObjectType) {
     const selectedFields = fieldNode.selectionSet.selections as ReadonlyArray<FieldNode>
+    const fieldTypes = type.getFields()
     for (const field of selectedFields) {
       const fieldKeypath = this.joinTable.get(type.name).get(field.name.value)
-      if (field.selectionSet) {
+      const fieldType = fieldTypes[field.name.value].type as GraphQLObjectType
+      if (this.joinTable.has(fieldType.name)) {
         // Has subfields
-        const newtype = type.getFields()[field.name.value].type as GraphQLObjectType
-        const tableName = this.tableNames.get(newtype.name)
+        const tableName = this.tableNames.get(fieldType.name)
         qb.leftJoin(fieldKeypath, tableName)
-        this.selectFromFields(qb, field, newtype)
+        this.selectFromFields(qb, field, fieldType)
       } else {
         qb.addSelect(fieldKeypath)
       }
     }
   }
-  // tslint:disable-next-line:max-line-length
-  public visitFieldDefinition(field: GraphQLField<any, any>, details: { objectType: GraphQLObjectType | GraphQLInterfaceType }): GraphQLField<any, any> | void | null {
+}
+
+export class SQLToManyJoiner extends SQLToOneJoiner {
+  public visitFieldDefinition(
+    field: GraphQLField<any, any>,
+    details: { objectType: GraphQLObjectType | GraphQLInterfaceType },
+  ): GraphQLField<any, any> | void | null {
     const tableName = this.args.name
     const propertyFieldName = this.args.field
-    const type = field.type as GraphQLObjectType
-    assertObjectType(field.type)
-    this.join(field.type as GraphQLObjectType, tableName)
+    const type = field.type as GraphQLNonNull<GraphQLList<GraphQLNonNull<GraphQLObjectType>>>
+    assertNonNullType(type)
+    assertListType(type.ofType)
+    assertNonNullType(type.ofType.ofType)
+    const objectType = type.ofType.ofType.ofType
+    assertObjectType(objectType)
+    this.join(objectType, tableName)
     const originalResolve = field.resolve
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
       const qb: SelectQueryBuilder<any> =  originalResolve(source, args, context, info)
@@ -78,10 +112,10 @@ export default class SQLJoiner extends SchemaDirectiveVisitor {
       this.selectFromFields(
         qb,
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
-        type)
+        objectType)
       return qb
-        .where({ [this.primaryFields.get(type.name)]: source[propertyFieldName] })
-        .getOne()
+        .whereInIds(source[propertyFieldName])
+        .getMany()
     }
   }
 }

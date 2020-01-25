@@ -2,6 +2,7 @@ import 'reflect-metadata' // this shim is required
 import { useKoaServer } from 'routing-controllers'
 
 import conf from './conf'
+import { SQLToManyJoiner, SQLToOneJoiner } from './graph/SQLJoiner'
 import logger from './logger'
 
 import * as controllers from './controllers'
@@ -64,12 +65,12 @@ app.use(morgan('combined', {
 
 import { ApolloServer } from 'apollo-server-koa'
 import * as graph from './graph'
-import SQLJoiner from './graph/SQLJoiner'
 const server = new ApolloServer({
   typeDefs: graph.typeDefs,
   resolvers: graph.resolvers,
   schemaDirectives: {
-    table: SQLJoiner,
+    toOne: SQLToOneJoiner,
+    toMany: SQLToManyJoiner,
   },
   tracing: true,
   engine: {

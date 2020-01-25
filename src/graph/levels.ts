@@ -20,22 +20,22 @@ type LevelBundle {
 }
 
 type Level {
-  id: Int!
-  version: Int!
-  uid: String!
-  title: String!
-  metadata: LevelMeta!
-  duration: Float!
-  size: FileSize!
-  description: String!
-  state: ResourceState!
-  censored: String
-  tags: [String!]!
-  category: [String!]!
-  owner: User
-  creationDate: Date!
-  modificationDate: Date!
-  bundle: LevelBundle
+  id: Int! @column(primary: true)
+  version: Int! @column
+  uid: String! @column
+  title: String! @column
+  metadata: LevelMeta! @column
+  duration: Float! @column
+  size: FileSize! @column
+  description: String! @column
+  state: ResourceState! @column(name: "published")
+  censored: String @column
+  tags: [String!]! @column
+  category: [String!]! @column
+  owner: User @column(name: "owner") @relation(name: "users")
+  creationDate: Date! @column
+  modificationDate: Date! @column
+  bundle: LevelBundle @column @relation(name: "bundles")
 }
 
 `

@@ -12,7 +12,12 @@ directive @column(
   primary: Boolean
 ) on FIELD_DEFINITION
 
-directive @table(
+directive @toOne(
+  name: String!
+  field: String!
+) on FIELD_DEFINITION
+
+directive @toMany(
   name: String!
   field: String!
 ) on FIELD_DEFINITION

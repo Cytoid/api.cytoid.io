@@ -41,9 +41,9 @@ type Collection {
   title: String!
   slogan: String!
   description: String!
-  owner: User @table(name: "users", field: "ownerId")
+  owner: User @toOne(name: "users", field: "ownerId")
   levelCount: Int!
-  levels(limit: Int): [Level!]!
+  levels(limit: Int): [Level!]! @toMany(name: "levels", field: "levelIds")
   creationDate: Date!
   modificationDate: Date!
   tags: [String!]!
@@ -111,42 +111,8 @@ export const resolvers = {
       parent: Collection,
       { limit }: { limit: number },
       context: any,
-      info: GraphQLResolveInfo): Array<Partial<Level>> | Promise<Array<Partial<Level>>> {
-      const qb = db.createQueryBuilder(Level, 'levels')
-
-      let levelIds = parent.levelIds
-      if (limit) {
-        levelIds = levelIds.slice(0, limit)
-      }
-      const result = GraphQLJoinMany(info, qb, 'id', levelIds)
-      if (result) {
-        return result
-      }
-      GraphQLJoinProperty(
-        info,
-        qb,
-        'owner',
-        'id',
-        'levels.owner',
-        'users',
-        (f) => f.filter((a) => a !== 'avatarURL'),
-      )
-
-      const ownerFieldNames = GraphQLFieldNamesForKeyPath(info, 'owner')
-      if (ownerFieldNames && ownerFieldNames.find((i) => i.name.value === 'avatarURL')) {
-        qb.addSelect(['users.email', 'users.avatarPath'])
-      }
-      GraphQLJoinProperty(info, qb, 'owner.email', 'address', 'users.emailObj', 'emails')
-      if (GraphQLFieldNames(info).find((i) => i.name.value === 'bundle')) {
-        qb.leftJoin('levels.bundle', 'bundle').addSelect(['bundle.path', 'bundle.content'])
-      }
-      return qb.getMany()
-        .then((levels) => {
-          for (const l of levels) {
-            FitUserEmail(l.owner)
-          }
-          return OrderObjectsByList(levels, levelIds, 'id')
-        })
+      info: GraphQLResolveInfo) {
+      return db.createQueryBuilder(Level, 'levels')
     },
     levelCount(parent: Collection) {
       return parent.levelIds.length
