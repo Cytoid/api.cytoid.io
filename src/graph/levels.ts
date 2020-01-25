@@ -35,7 +35,7 @@ type Level {
   owner: User @column(name: "owner") @relation(name: "users")
   creationDate: Date! @column
   modificationDate: Date! @column
-  bundle: LevelBundle @column @relation(name: "bundles")
+  bundle: LevelBundle @column @relation(name: "bundles", select: ["path", "content"])
 }
 
 `

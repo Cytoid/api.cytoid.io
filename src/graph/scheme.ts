@@ -24,6 +24,7 @@ directive @toMany(
 
 directive @relation(
   name: String!
+  select: [String!]
 ) on FIELD_DEFINITION
 
 

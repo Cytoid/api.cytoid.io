@@ -5,15 +5,6 @@ import { getManager } from 'typeorm'
 import Collection from '../models/collection'
 import { Level } from '../models/level'
 import User from '../models/user'
-import {
-  GraphQLFieldNames,
-  GraphQLFieldNamesForKeyPath,
-  GraphQLJoin,
-  GraphQLJoinMany,
-  GraphQLJoinProperty,
-} from '../utils/graph_joiner'
-import OrderObjectsByList from '../utils/order_objects_by_list'
-import {FitUserEmail} from './users'
 
 const datastore = getManager('data')
 const db = getManager()
