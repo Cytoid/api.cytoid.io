@@ -255,11 +255,13 @@ export default class LevelController extends BaseController {
       .offset(pageLimit * pageNum)
 
     if (ctx.request.query.sort &&
-      keyMap[ctx.request.query.sort] &&
-      ctx.request.query.sort !== 'creation_date'
+      keyMap[ctx.request.query.sort]
     ) {
       query = query.orderBy(keyMap[ctx.request.query.sort], theSortOrder, 'NULLS LAST')
-        .addOrderBy('levels.date_created', 'DESC')
+      if (ctx.request.query.sort !== 'creation_date') {
+        query = query.addOrderBy('levels.date_created', 'DESC')
+      }
+
     } else if (!ctx.request.query.search) {
       query = query.orderBy('levels.date_created', theSortOrder)
     }
