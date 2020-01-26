@@ -1,26 +1,27 @@
 import { SchemaDirectiveVisitor } from 'apollo-server-koa'
 import {
   assertListType, assertNonNullType,
-  assertObjectType, BooleanValueNode, FieldDefinitionNode, FieldNode,
+  assertObjectType, BooleanValueNode, FieldNode,
   GraphQLField,
-  GraphQLInterfaceType, GraphQLLeafType, GraphQLList, GraphQLNonNull,
+  GraphQLInterfaceType, GraphQLList, GraphQLNonNull,
   GraphQLObjectType,
-  GraphQLResolveInfo, ListValueNode, NamedTypeNode, SelectionNode,
-  StringValueNode, ValueNode,
+  GraphQLResolveInfo, ListValueNode,
+  StringValueNode,
 } from 'graphql'
-import {SelectQueryBuilder} from 'typeorm'
+import {getManager, SelectQueryBuilder} from 'typeorm'
 
-interface SQLField {
+interface ISQLField {
   keyPath: string
   relation: boolean
   selections?: string[]
 }
 
 export class SQLToOneJoiner extends SchemaDirectiveVisitor {
+  public db = getManager()
   protected primaryFields: Map<string, string> = new Map()
 
   // joinTable.get('graph relation name').get('graph field name')
-  protected joinTable: Map<string, Map<string, SQLField>> = new Map()
+  protected joinTable: Map<string, Map<string, ISQLField>> = new Map()
   protected tableNames: Map<string, string> = new Map()
 
   public visitFieldDefinition(
@@ -34,21 +35,32 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
     this.join(type, tableName)
     const originalResolve = field.resolve
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
-      const qb: SelectQueryBuilder<any> =  originalResolve(source, args, context, info)
+      let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
       this.selectFromFields(
         qb,
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
         type)
-      return qb
-        .where({ [this.primaryFields.get(type.name)]: source[propertyFieldName] })
-        .getOne()
+      if (propertyFieldName) {
+        // If Property Field Name is missing, the task of filtering data would be delegated to the resolver
+        qb
+          .where({ [this.primaryFields.get(type.name)]: source[propertyFieldName] })
+      }
+      context.queryBuilder = qb
+      qb = originalResolve(source, args, context, info)
+      if (qb) {
+        return qb
+          .limit(1)
+          .getOne()
+      } else {
+        return null
+      }
     }
   }
 
   protected join(type: GraphQLObjectType, tableName: string) {
     this.tableNames.set(type.name, tableName)
-    let joinTable: Map<string, SQLField>
+    let joinTable: Map<string, ISQLField>
     if (this.joinTable.has(type.name)) {
       joinTable = this.joinTable.get(type.name)
     } else {
@@ -61,7 +73,7 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       if (directive) {
         const dirarg = directive.arguments.find((a) => a.name.value === 'name')
         const columnName = dirarg ? ((dirarg.value as StringValueNode).value) : subfield.name.value
-        const sqlField: SQLField = {
+        const sqlField: ISQLField = {
           keyPath: tableName + '.' + columnName,
           relation: false,
         }
@@ -143,7 +155,7 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
     const originalResolve = field.resolve
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
       const ids = source[propertyFieldName]
-      const qb: SelectQueryBuilder<any> =  originalResolve(source, args, context, info)
+      let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
       this.selectFromFields(
         qb,
@@ -154,10 +166,16 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
 
       // Select primary field
       qb.addSelect(this.joinTable.get(objectType.name).get(primaryField).keyPath)
-      return qb
         .whereInIds(ids)
-        .getMany()
-        .then((objs) => orderObjectsByList(objs, ids, primaryField))
+      context.queryBuilder = qb
+      qb = originalResolve(source, args, context, info)
+      if (qb) {
+        return qb.getMany()
+          .then((objs: any) => orderObjectsByList(objs, ids, primaryField))
+      } else {
+        return null
+      }
+
     }
   }
 }

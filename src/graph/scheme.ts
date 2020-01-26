@@ -14,7 +14,7 @@ directive @column(
 
 directive @toOne(
   name: String!
-  field: String!
+  field: String
 ) on FIELD_DEFINITION
 
 directive @toMany(

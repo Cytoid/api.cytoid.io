@@ -1,7 +1,7 @@
 import { UserInputError } from 'apollo-server-koa'
 import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
-import { getManager } from 'typeorm'
+import {getManager, SelectQueryBuilder} from 'typeorm'
 import Collection from '../models/collection'
 import { Level } from '../models/level'
 import User from '../models/user'
@@ -95,15 +95,19 @@ export const resolvers = {
     },
   },
   Collection: {
-    owner(parent: Collection, args: never, context: any, info: GraphQLResolveInfo) {
-      return db.createQueryBuilder(User, 'users')
+    owner(
+      parent: Collection,
+      args: never,
+      context: { queryBuilder: SelectQueryBuilder<User> },
+      info: GraphQLResolveInfo) {
+      return context.queryBuilder
     },
     levels(
       parent: Collection,
       { limit }: { limit: number },
-      context: any,
+      context: { queryBuilder: SelectQueryBuilder<User> },
       info: GraphQLResolveInfo) {
-      return db.createQueryBuilder(Level, 'levels')
+      return context.queryBuilder
     },
     levelCount(parent: Collection) {
       return parent.levelIds.length
