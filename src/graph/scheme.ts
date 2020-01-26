@@ -28,6 +28,9 @@ directive @relation(
   select: [String!]
 ) on FIELD_DEFINITION
 
+directive @reverseRelation(
+  name: String!
+) on FIELD_DEFINITION
 
 type ResourceMetaProperty {
   name: String

@@ -1,8 +1,11 @@
 import { gql } from 'apollo-server-koa'
+import {GraphQLResolveInfo} from 'graphql'
 import { join } from 'path'
+import {SelectQueryBuilder} from 'typeorm'
 import conf from '../conf'
 import {Level} from '../models'
 import {ILevelBundle} from '../models/level'
+import User from '../models/user'
 
 export const typeDefs = gql`
 type LevelMeta {
@@ -17,6 +20,13 @@ type LevelBundle {
   music: String
   musicPreview: String
   backgroundImage: String
+}
+
+type Chart {
+  name: String @column
+  difficulty: Int! @column
+  type: String! @column
+  notesCount: Int! @column
 }
 
 type Level {
@@ -36,8 +46,12 @@ type Level {
   creationDate: Date! @column
   modificationDate: Date! @column
   bundle: LevelBundle @column @relation(name: "bundles", select: ["path", "content"])
+  charts: [Chart!]! @reverseRelation(name: "charts")
 }
 
+extend type Query {
+  level(uid: String!): Level @toOne(name: "levels")
+}
 `
 
 export const resolvers = {
@@ -61,6 +75,17 @@ export const resolvers = {
     },
     musicPreview(parent: ILevelBundle) {
       return conf.assetsURL + '/' + join(conf.assetsURL, parent.path, parent.content.music_preview)
+    },
+  },
+  Query: {
+    level(
+      parent: never,
+      args: {
+        uid: string,
+      },
+      context: { queryBuilder: SelectQueryBuilder<User> },
+    ) {
+      return context.queryBuilder.where({ uid: args.uid })
     },
   },
 }
