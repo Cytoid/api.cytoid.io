@@ -11,8 +11,9 @@ import {
 import {getManager, SelectQueryBuilder} from 'typeorm'
 
 interface ISQLField {
-  keyPath: string
+  key: string
   relation: boolean
+  relationKey?: string
   selections?: string[]
 }
 
@@ -70,36 +71,55 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
 
     for (const subfield of type.astNode.fields) {
       const directive = subfield.directives.find((a) => a.name.value === 'column')
-      if (directive) {
-        const dirarg = directive.arguments.find((a) => a.name.value === 'name')
-        const columnName = dirarg ? ((dirarg.value as StringValueNode).value) : subfield.name.value
-        const sqlField: ISQLField = {
-          keyPath: tableName + '.' + columnName,
-          relation: false,
+      if (!directive) {
+        continue
+      }
+      const dirarg = directive.arguments.find((a) => a.name.value === 'name')
+      const columnName = dirarg ? ((dirarg.value as StringValueNode).value) : subfield.name.value
+      const sqlField: ISQLField = {
+        key: columnName,
+        relation: false,
+      }
+      joinTable.set(subfield.name.value, sqlField)
+
+      const primaryarg = directive.arguments.find((a) => a.name.value === 'primary')
+      const isPrimary = primaryarg ? ((primaryarg.value as BooleanValueNode).value) : false
+      if (isPrimary) {
+        this.primaryFields.set(type.name, subfield.name.value)
+      }
+
+      const relationDirective = subfield.directives.find((a) => a.name.value === 'relation')
+      if (relationDirective) {
+        sqlField.relation = true
+        const joinedTableName = relationDirective.arguments.find((a) => a.name.value === 'name')
+        const relationField = type.getFields()[subfield.name.value]
+        const relationFieldType = relationField.type as GraphQLObjectType
+
+        const selectionArg = relationDirective.arguments
+          .find((a) => a.name.value === 'select')
+        if (selectionArg) {
+          const selectionNode = selectionArg.value as ListValueNode
+          const selections = (selectionNode.values as ReadonlyArray<StringValueNode>).map((a) => a.value)
+          sqlField.selections = selections
         }
-        joinTable.set(subfield.name.value, sqlField)
 
-        const primaryarg = directive.arguments.find((a) => a.name.value === 'primary')
-        const isPrimary = primaryarg ? ((primaryarg.value as BooleanValueNode).value) : false
-        if (isPrimary) {
-          this.primaryFields.set(type.name, subfield.name.value)
-        }
-
-        const relationDirective = subfield.directives.find((a) => a.name.value === 'relation')
-        if (relationDirective) {
-          sqlField.relation = true
-
-          const selectionArg = relationDirective.arguments
-            .find((a) => a.name.value === 'select')
-          if (selectionArg) {
-            const selectionNode = selectionArg.value as ListValueNode
-            const selections = (selectionNode.values as ReadonlyArray<StringValueNode>).map((a) => a.value)
-            sqlField.selections = selections
+        const relationFieldArg = relationDirective.arguments
+          .find((a) => a.name.value === 'field')
+        if (relationFieldArg) {
+          const node = relationFieldArg.value as StringValueNode
+          sqlField.relationKey = node.value
+          relationField.resolve = (parent: any) => {
+            if (parent[sqlField.relationKey]) {
+              return parent[sqlField.relationKey]
+            }
+            if (parent[sqlField.key]) {
+              return { [this.primaryFields.get(relationFieldType.name)]: parent[sqlField.key] }
+            }
           }
-          const joinedTableName = relationDirective.arguments.find((a) => a.name.value === 'name')
-          const relationField = type.getFields()[subfield.name.value]
-          this.join(relationField.type as GraphQLObjectType, (joinedTableName.value as StringValueNode).value)
+        } else {
+          sqlField.relationKey = sqlField.key
         }
+        this.join(relationFieldType, (joinedTableName.value as StringValueNode).value)
       }
     }
   }
@@ -107,6 +127,7 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
   protected selectFromFields(qb: SelectQueryBuilder<any>, fieldNode: FieldNode, type: GraphQLObjectType) {
     const selectedFields = fieldNode.selectionSet.selections as ReadonlyArray<FieldNode>
     const fieldTypes = type.getFields()
+    const tableName = this.tableNames.get(type.name)
     for (const field of selectedFields) {
       const sqlField = this.joinTable.get(type.name).get(field.name.value)
       if (!sqlField) {
@@ -115,15 +136,25 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       const fieldType = fieldTypes[field.name.value].type as GraphQLObjectType
       if (sqlField.relation) {
         // Has subfields
-        const tableName = this.tableNames.get(fieldType.name)
-        qb.leftJoin(sqlField.keyPath, tableName)
+        const subtypeTableName = this.tableNames.get(fieldType.name)
+        if (field.selectionSet.selections.length === 0) {
+          continue
+        }
+        if (field.selectionSet.selections.length === 1 &&
+          (field.selectionSet.selections[0] as FieldNode).name.value === this.primaryFields.get(fieldType.name)) {
+          // Simplify query
+          qb.addSelect(tableName + '.' + sqlField.key)
+          continue
+        }
+        qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
         if (sqlField.selections) {
-          qb.addSelect(sqlField.selections.map((s) => tableName + '.' + s))
+          // Allowing the selections=["aaa", "bbb"] directive argument
+          qb.addSelect(sqlField.selections.map((s) => subtypeTableName + '.' + s))
         } else {
           this.selectFromFields(qb, field, fieldType)
         }
       } else {
-        qb.addSelect(sqlField.keyPath)
+        qb.addSelect(tableName + '.' + sqlField.key)
       }
     }
   }
@@ -165,7 +196,7 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
       const primaryField = this.primaryFields.get(objectType.name)
 
       // Select primary field
-      qb.addSelect(this.joinTable.get(objectType.name).get(primaryField).keyPath)
+      qb.addSelect(tableName + '.' + this.joinTable.get(objectType.name).get(primaryField).key)
         .whereInIds(ids)
       context.queryBuilder = qb
       qb = originalResolve(source, args, context, info)

@@ -32,7 +32,7 @@ type Level {
   censored: String @column
   tags: [String!]! @column
   category: [String!]! @column
-  owner: User @column(name: "owner") @relation(name: "users")
+  owner: User @column(name: "ownerId") @relation(name: "users", field: "owner")
   creationDate: Date! @column
   modificationDate: Date! @column
   bundle: LevelBundle @column @relation(name: "bundles", select: ["path", "content"])
