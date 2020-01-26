@@ -1,6 +1,7 @@
 import { gql } from 'apollo-server-koa'
 import {GraphQLResolveInfo} from 'graphql'
 import {SelectQueryBuilder} from 'typeorm'
+import {redis} from '../db'
 import User from '../models/user'
 
 export const typeDefs = gql`
@@ -17,49 +18,23 @@ type User {
   registrationDate: Date @column
   role: String! @column
   avatarURL: String! @column(name: "avatarPath")
-}
 
-type Profile {
-  user: User @toOne(name: "users")
+  online: Boolean!
 }
 
 extend type Query {
-  profile(id: ID, uid: String): Profile
   user(id: ID, uid: String): User @toOne(name: "users")
 }
 `
 
 export const resolvers = {
-  Profile: {
-    user(
-      parent: { id: string, uid: string},
-      args: any,
-      context: {queryBuilder: SelectQueryBuilder<User>}) {
-      if (parent.id) {
-        return context.queryBuilder.where({ id: parent.id })
-      }
-      if (parent.uid) {
-        return context.queryBuilder.where({ uid: parent.uid })
-      }
-      return null
+  User: {
+    online(parent: User) {
+      return redis.getAsync('onlinestatus:' + parent.id)
+        .then((val) => val !== null)
     },
   },
   Query: {
-    profile(
-      parent: never,
-      args: {
-        id: string,
-        uid: string,
-      },
-      context: any,
-      info: GraphQLResolveInfo,
-    ) {
-      if (args.id || args.uid) {
-        return args
-      } else {
-        return null
-      }
-    },
     user(
       parent: never,
       args: {
