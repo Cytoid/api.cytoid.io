@@ -45,6 +45,10 @@ export const resolvers = {
       info: GraphQLResolveInfo,
     ) {
       if (args.id) {
+        const selections = context.queryBuilder.expressionMap.selects
+        if (selections.length === 1 && selections[0].selection === 'users.id') {
+          return { id: args.id }
+        }
         return context.queryBuilder.where({ id: args.id })
       } else if (args.uid) {
         return context.queryBuilder.where({ uid: args.uid })

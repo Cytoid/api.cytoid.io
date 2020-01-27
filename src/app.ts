@@ -13,7 +13,12 @@ const app = new Koa()
 
 import * as bodyParser from 'koa-bodyparser'
 app.use(bodyParser())
-import passport, {authorizationChecker, currentUserChecker, useExternalAuth} from './authentication'
+import passport, {
+  authorizationChecker,
+  currentUserChecker,
+  OptionalAuthenticate,
+  useExternalAuth
+} from './authentication'
 
 app.keys = [conf.secret]
 
@@ -79,7 +84,11 @@ const server = new ApolloServer({
   },
   introspection: true,
   playground: true,
+  context({ ctx }: { ctx: Koa.Context }) {
+    return { user: ctx.state.user }
+  },
 })
+app.use(OptionalAuthenticate)
 server.applyMiddleware({
   app,
   path: '/graph',

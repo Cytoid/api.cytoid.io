@@ -50,13 +50,18 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       }
       context.queryBuilder = qb
       qb = originalResolve(source, args, context, info)
-      if (qb) {
-        return qb
-          .limit(1)
-          .getOne()
-      } else {
+      if (!qb) {
         return null
       }
+      if (!(qb instanceof SelectQueryBuilder)) {
+        return qb
+      }
+      if (qb.expressionMap.selects.length === 0) {
+        return {}
+      }
+      return qb
+        .limit(1)
+        .getOne()
     }
   }
 

@@ -14,6 +14,10 @@ extend type Query {
   collection(id: ID, uid: String): Collection
 }
 
+extend type User {
+  collections(first: Int): [CollectionUserListing!]!
+}
+
 extend type Mutation {
   createCollection(
     uid: String!
@@ -23,6 +27,21 @@ extend type Mutation {
     slogan: String
     description: String
   ): Collection
+}
+
+type CollectionUserListing {
+  id: ID!
+  uid: String!
+  coverPath: String
+  title: String!
+  slogan: String!
+  description: String!
+  levelCount: Int!
+  creationDate: Date!
+  modificationDate: Date!
+  tags: [String!]!
+  state: ResourceState!
+  metadata: ResourceMeta!
 }
 
 type Collection {
@@ -111,6 +130,20 @@ export const resolvers = {
     },
     levelCount(parent: Collection) {
       return parent.levelIds.length
+    },
+  },
+  User: {
+    collections(
+      parent: User,
+      { first }: { first: number },
+      context: { queryBuilder: SelectQueryBuilder<User> },
+      info: GraphQLResolveInfo) {
+      return datastore.getMongoRepository(Collection).find({
+        where: {
+          ownerId: parent.id,
+        },
+        take: first,
+      })
     },
   },
 }
