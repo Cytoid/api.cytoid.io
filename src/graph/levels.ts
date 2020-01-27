@@ -71,10 +71,10 @@ export const resolvers = {
       return conf.assetsURL + '/' + join(parent.path, parent.content.background)
     },
     music(parent: ILevelBundle) {
-      return conf.assetsURL + '/' + join(conf.assetsURL, parent.path, parent.content.music)
+      return conf.assetsURL + '/' + join(parent.path, parent.content.music)
     },
     musicPreview(parent: ILevelBundle) {
-      return conf.assetsURL + '/' + join(conf.assetsURL, parent.path, parent.content.music_preview)
+      return conf.assetsURL + '/' + join(parent.path, parent.content.music_preview)
     },
   },
   Query: {
