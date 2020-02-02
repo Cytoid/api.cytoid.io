@@ -1,6 +1,7 @@
 import { gql } from 'apollo-server-koa'
 import {FieldNode, GraphQLResolveInfo} from 'graphql'
 import {getManager, SelectQueryBuilder} from 'typeorm'
+import ac from '../access'
 import Profile from '../models/profile'
 import User from '../models/user'
 
@@ -155,10 +156,12 @@ group by grade;`, [parent.id])
         .execute()
         .then((results: any) => {
           const activities = results[0]
-          activities.totalRankedPlays = parseInt(activities.totalRankedPlays, 10)
-          activities.clearedNotes = parseInt(activities.clearedNotes, 10)
-          activities.totalRankedScore = parseInt(activities.totalRankedScore, 10)
-          activities.averageRankedAccuracy = parseFloat(activities.averageRankedAccuracy)
+          activities.totalRankedPlays = parseInt(activities.totalRankedPlays, 10) || 0
+          activities.clearedNotes = parseInt(activities.clearedNotes, 10) || 0
+          activities.totalRankedScore = parseInt(activities.totalRankedScore, 10) || 0
+          activities.averageRankedAccuracy = parseFloat(activities.averageRankedAccuracy) || 0
+          activities.totalPlayTime = activities.totalPlayTime || 0
+          activities.maxCombo = activities.maxCombo || 0
           return activities
         })
     },
