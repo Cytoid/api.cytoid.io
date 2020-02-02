@@ -3,6 +3,7 @@ import { gql } from 'apollo-server-koa'
 const scheme = gql`
 scalar FileSize
 scalar Date
+scalar Long
 
 type Query
 type Mutation

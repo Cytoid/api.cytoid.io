@@ -24,11 +24,11 @@ type ProfileGrades {
   F: Int!
 }
 type ProfileActivity {
-  totalRankedPlays: Int!
-  clearedNotes: Int!
-  maxCombo: Int!
+  totalRankedPlays: Long!
+  clearedNotes: Long!
+  maxCombo: Long!
   averageRankedAccuracy: Float!
-  totalRankedScore: Int!
+  totalRankedScore: Long!
   totalPlayTime: Float!
 }
 type ProfileTimeSeries {
