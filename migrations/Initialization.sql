@@ -108,26 +108,3 @@ CREATE TABLE "level_downloads" (
   "count"    smallint  NOT NULL DEFAULT 1,
   UNIQUE ("levelId", "userId")
 );
-
-CREATE TABLE collections
-(
-    "id"            SERIAL    NOT NULL PRIMARY KEY,
-    "uid"           varchar   NOT NULL UNIQUE,
-    "coverPath"     varchar   REFERENCES files ("path"),
-    "title"         varchar   NOT NULL DEFAULT '',
-    "brief"         varchar   NOT NULL DEFAULT '',
-    "description"   text      NOT NULL DEFAULT '',
-    "ownerId"       uuid      REFERENCES users ("id"),
-    "date_created"  TIMESTAMP NOT NULL DEFAULT now(),
-    "date_modified" TIMESTAMP NOT NULL DEFAULT now()
-);
-
-CREATE TABLE collections_levels
-(
-    "collectionId" integer NOT NULL REFERENCES collections ("id"),
-    "levelId" integer NOT NULL REFERENCES levels ("id"),
-    "order" integer NOT NULL,
-    UNIQUE ("collectionId", "levelId"),
-    UNIQUE ("collectionId", "order"),
-    CHECK ("order" > 0)
-);

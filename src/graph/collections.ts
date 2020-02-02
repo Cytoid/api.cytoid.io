@@ -1,7 +1,7 @@
 import { UserInputError } from 'apollo-server-koa'
 import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
-import {getManager, SelectQueryBuilder} from 'typeorm'
+import {Equal, getManager, Not, SelectQueryBuilder} from 'typeorm'
 import Collection from '../models/collection'
 import { Level } from '../models/level'
 import User from '../models/user'
@@ -74,12 +74,27 @@ export const resolvers = {
       context: any,
       info: GraphQLResolveInfo,
     ) {
-
       if (id) {
-        return datastore.getMongoRepository(Collection).findOne(id)
+        return datastore.getMongoRepository(Collection).findOne({
+          where: {
+            id,
+            $or: [
+              { state: 'PUBLIC' },
+              { state: 'UNLISTED' },
+            ],
+          },
+        })
       }
       if (uid) {
-        return datastore.getMongoRepository(Collection).findOne({ uid })
+        return datastore.getMongoRepository(Collection).findOne({
+          where: {
+            uid,
+            $or: [
+              { state: 'PUBLIC' },
+              { state: 'UNLISTED' },
+            ],
+          },
+        })
       }
       return null
     },
@@ -127,7 +142,7 @@ export const resolvers = {
       { limit }: { limit: number },
       context: { queryBuilder: SelectQueryBuilder<User> },
       info: GraphQLResolveInfo) {
-      return context.queryBuilder
+      return context.queryBuilder.andWhere('levels.published = true')
     },
     levelCount(parent: Collection) {
       return parent.levelIds.length
@@ -147,6 +162,7 @@ export const resolvers = {
       return datastore.getMongoRepository(Collection).find({
         where: {
           ownerId: parent.id,
+          state: 'PUBLIC',
         },
         take: first,
       })
@@ -156,6 +172,7 @@ export const resolvers = {
     ) {
       return datastore.getMongoRepository(Collection).count({
         ownerId: parent.id,
+        state: 'PUBLIC',
       })
     },
   },

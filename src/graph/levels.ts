@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-koa'
 import {GraphQLResolveInfo} from 'graphql'
 import { join } from 'path'
-import {getManager, SelectQueryBuilder} from 'typeorm'
+import {Equal, getManager, Not, SelectQueryBuilder} from 'typeorm'
 import conf from '../conf'
 import {Level} from '../models'
 import {ILevelBundle} from '../models/level'
@@ -108,7 +108,7 @@ export const resolvers = {
       },
       context: { queryBuilder: SelectQueryBuilder<User> },
     ) {
-      return context.queryBuilder.where({ uid: args.uid })
+      return context.queryBuilder.where({ uid: args.uid, published: Not(Equal(false)) })
     },
   },
   User: {
@@ -121,7 +121,7 @@ export const resolvers = {
       } else {
         qb.select('count(levels.id) as count')
       }
-      return qb.where({ ownerId: parent.id })
+      return qb.where({ ownerId: parent.id, published: true })
         .getRawOne()
         .then((value) => parseInt(value.count, 10))
     },
@@ -130,7 +130,7 @@ export const resolvers = {
       args: { category: string, first: number },
       context: { queryBuilder: SelectQueryBuilder<Level>} ) {
       const qb = context.queryBuilder
-        .where({ ownerId: parent.id })
+        .where({ ownerId: parent.id, published: true })
       if (args.first) {
         qb.take(args.first)
       }

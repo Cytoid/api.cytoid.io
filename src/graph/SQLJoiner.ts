@@ -226,7 +226,14 @@ function orderObjectsByList<OBJ, T>(objects: OBJ[], list: T[], key: string): OBJ
     const orderKey: T = (obj as any)[key] as T
     map.set(orderKey, obj)
   }
-  return list.map((orderKey) => map.get(orderKey))
+  const newList: OBJ[] = []
+  for (const orderKey of list) {
+    const obj = map.get(orderKey)
+    if (obj) {
+      newList.push(obj)
+    }
+  }
+  return newList
 }
 
 export class SQLToManyJoiner extends SQLToOneJoiner {
