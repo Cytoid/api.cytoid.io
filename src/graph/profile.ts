@@ -32,8 +32,8 @@ type ProfileActivity {
   totalPlayTime: Float!
 }
 type ProfileTimeSeries {
-  accu_rating: Float!
-  accu_accuracy: Float!,
+  accumulativeRating: Float!
+  accumulativeAccuracy: Float!,
   week: Int!
   year: Int!
   accuracy: Float!
@@ -42,7 +42,7 @@ type ProfileTimeSeries {
 }
 type Profile {
   id: ID! @column
-  user: User @column(name: "userId") @relation(name: "users", field: "user")
+  user: User @column(name: "id") @relation(name: "users", field: "user")
   birthday: Date @column
   bio: String @column
   headerPath: String @column
@@ -144,6 +144,7 @@ group by grade;`, [parent.id])
       const selections: Array<keyof typeof queries> = fieldNode
         .selectionSet
         .selections
+        .filter((selection) => (selection as FieldNode).name.value in queries)
         .map((selection) => (selection as FieldNode).name.value) as Array<keyof typeof queries>
 
       return db.createQueryBuilder().select(selections.map((name) => queries[name]))
@@ -180,8 +181,10 @@ FROM (
      WINDOW w AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);`, [ parent.id ])
         .then((rows) => {
           for (const row of rows) {
-            row.accu_rating = parseFloat(row.accu_rating)
-            row.accu_accuracy = parseFloat(row.accu_accuracy)
+            row.accumulativeRating = parseFloat(row.accu_rating)
+            row.accumulativeAccuracy = parseFloat(row.accu_accuracy)
+            delete row.accu_rating
+            delete row.accu_accuracy
             row.accuracy = parseFloat(row.accuracy)
             row.rating = parseFloat(row.rating)
           }

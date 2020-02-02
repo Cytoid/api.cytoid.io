@@ -19,7 +19,7 @@ directive @toOne(
 
 directive @toMany(
   name: String!
-  field: String!
+  field: String
 ) on FIELD_DEFINITION
 
 directive @relation(

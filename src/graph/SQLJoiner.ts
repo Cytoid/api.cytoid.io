@@ -1,11 +1,11 @@
 import { SchemaDirectiveVisitor } from 'apollo-server-koa'
 import {
   assertListType, assertNonNullType,
-  assertObjectType, BooleanValueNode, FieldNode,
+  assertObjectType, BooleanValueNode, FieldNode, FragmentSpreadNode,
   GraphQLField,
   GraphQLInterfaceType, GraphQLList, GraphQLNonNull,
   GraphQLObjectType,
-  GraphQLResolveInfo, ListTypeNode, ListValueNode, NonNullTypeNode,
+  GraphQLResolveInfo, ListTypeNode, ListValueNode, NonNullTypeNode, SelectionNode,
   StringValueNode,
 } from 'graphql'
 import {getManager, SelectQueryBuilder} from 'typeorm'
@@ -42,7 +42,8 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       this.selectFromFields(
         qb,
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
-        type)
+        type,
+        info)
       if (propertyFieldName) {
         // If Property Field Name is missing, the task of filtering data would be delegated to the resolver
         qb
@@ -149,8 +150,28 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
     }
   }
 
-  protected selectFromFields(qb: SelectQueryBuilder<any>, fieldNode: FieldNode, type: GraphQLObjectType) {
-    const selectedFields = fieldNode.selectionSet.selections as ReadonlyArray<FieldNode>
+  protected spreadFields(arr: FieldNode[], node: SelectionNode, info: GraphQLResolveInfo) {
+    if (node.kind === 'Field') {
+      const fieldNode = node as FieldNode
+      arr.push(fieldNode)
+    } else if (node.kind === 'FragmentSpread') {
+      const fragmentSpread = node as FragmentSpreadNode
+      for (const subSelection of info.fragments[fragmentSpread.name.value].selectionSet.selections) {
+        this.spreadFields(arr, subSelection, info)
+      }
+    }
+  }
+
+  protected selectFromFields(
+    qb: SelectQueryBuilder<any>,
+    fieldNode: FieldNode,
+    type: GraphQLObjectType,
+    info: GraphQLResolveInfo) {
+    const selectedFields: FieldNode[] = []
+    for (const selection of fieldNode.selectionSet.selections) {
+      this.spreadFields(selectedFields, selection, info)
+    }
+
     const fieldTypes = type.getFields()
     const tableName = this.tableNames.get(type.name)
     for (const field of selectedFields) {
@@ -170,7 +191,7 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
             continue
           }
           qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
-          this.selectFromFields(qb, field, objectType)
+          this.selectFromFields(qb, field, objectType, info)
         } else {
           // Has subfields
           const fieldType = fieldTypes[field.name.value].type as GraphQLObjectType
@@ -189,7 +210,7 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
             // Allowing the selections=["aaa", "bbb"] directive argument
             qb.addSelect(sqlField.selections.map((s) => subtypeTableName + '.' + s))
           } else {
-            this.selectFromFields(qb, field, fieldType)
+            this.selectFromFields(qb, field, fieldType, info)
           }
         }
       } else {
@@ -224,28 +245,34 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
     this.join(objectType, tableName)
     const originalResolve = field.resolve
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
-      const ids = source[propertyFieldName]
+      const ids = propertyFieldName && source[propertyFieldName]
       let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
       this.selectFromFields(
         qb,
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
-        objectType)
+        objectType,
+        info)
 
       const primaryField = this.primaryFields.get(objectType.name)
 
       // Select primary field
       qb.addSelect(tableName + '.' + this.joinTable.get(objectType.name).get(primaryField).key)
-        .whereInIds(ids)
+      if (ids) {
+        qb.whereInIds(ids)
+      }
       context.queryBuilder = qb
       qb = originalResolve(source, args, context, info)
       if (qb) {
-        return qb.getMany()
-          .then((objs: any) => orderObjectsByList(objs, ids, primaryField))
+        if (ids) {
+          return qb.getMany()
+            .then((objs: any) => orderObjectsByList(objs, ids, primaryField))
+        } else {
+          return qb.getMany()
+        }
       } else {
         return null
       }
-
     }
   }
 }

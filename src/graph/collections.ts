@@ -15,6 +15,7 @@ extend type Query {
 }
 
 extend type User {
+  collectionsCount: Int!
   collections(first: Int): [CollectionUserListing!]!
 }
 
@@ -132,6 +133,11 @@ export const resolvers = {
       return parent.levelIds.length
     },
   },
+  CollectionUserListing: {
+    levelCount(parent: Collection) {
+      return parent.levelIds.length
+    },
+  },
   User: {
     collections(
       parent: User,
@@ -143,6 +149,13 @@ export const resolvers = {
           ownerId: parent.id,
         },
         take: first,
+      })
+    },
+    collectionsCount(
+      parent: User,
+    ) {
+      return datastore.getMongoRepository(Collection).count({
+        ownerId: parent.id,
       })
     },
   },

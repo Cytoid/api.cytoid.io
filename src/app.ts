@@ -88,7 +88,6 @@ const server = new ApolloServer({
     return { user: ctx.state.user }
   },
 })
-app.use(OptionalAuthenticate)
 server.applyMiddleware({
   app,
   path: '/graph',
