@@ -39,11 +39,11 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
       let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
-      this.selectFromFields(
-        qb,
+
+      const selector = new Selector(qb, info, this.primaryFields, this.joinTable, this.tableNames)
+      selector.select(
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
-        type,
-        info)
+        type)
       if (propertyFieldName) {
         // If Property Field Name is missing, the task of filtering data would be delegated to the resolver
         qb
@@ -60,9 +60,7 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       if (qb.expressionMap.selects.length === 0) {
         return {}
       }
-      return qb
-        .limit(1)
-        .getOne()
+      return selector.getOne()
     }
   }
 
@@ -149,75 +147,6 @@ export class SQLToOneJoiner extends SchemaDirectiveVisitor {
       }
     }
   }
-
-  protected spreadFields(arr: FieldNode[], node: SelectionNode, info: GraphQLResolveInfo) {
-    if (node.kind === 'Field') {
-      const fieldNode = node as FieldNode
-      arr.push(fieldNode)
-    } else if (node.kind === 'FragmentSpread') {
-      const fragmentSpread = node as FragmentSpreadNode
-      for (const subSelection of info.fragments[fragmentSpread.name.value].selectionSet.selections) {
-        this.spreadFields(arr, subSelection, info)
-      }
-    }
-  }
-
-  protected selectFromFields(
-    qb: SelectQueryBuilder<any>,
-    fieldNode: FieldNode,
-    type: GraphQLObjectType,
-    info: GraphQLResolveInfo) {
-    const selectedFields: FieldNode[] = []
-    for (const selection of fieldNode.selectionSet.selections) {
-      this.spreadFields(selectedFields, selection, info)
-    }
-
-    const fieldTypes = type.getFields()
-    const tableName = this.tableNames.get(type.name)
-    for (const field of selectedFields) {
-      const sqlField = this.joinTable.get(type.name).get(field.name.value)
-      if (!sqlField) {
-        continue
-      }
-
-      if (sqlField.relation) {
-        if (sqlField.many) {
-          const fieldType = fieldTypes[field.name.value].type as GraphQLNonNull<
-            GraphQLList<GraphQLNonNull<GraphQLObjectType>>
-          >
-          const objectType = fieldType.ofType.ofType.ofType
-          const subtypeTableName = this.tableNames.get(objectType.name)
-          if (field.selectionSet.selections.length === 0) {
-            continue
-          }
-          qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
-          this.selectFromFields(qb, field, objectType, info)
-        } else {
-          // Has subfields
-          const fieldType = fieldTypes[field.name.value].type as GraphQLObjectType
-          const subtypeTableName = this.tableNames.get(fieldType.name)
-          if (field.selectionSet.selections.length === 0) {
-            continue
-          }
-          if (field.selectionSet.selections.length === 1 &&
-            (field.selectionSet.selections[0] as FieldNode).name.value === this.primaryFields.get(fieldType.name)) {
-            // Simplify query
-            qb.addSelect(tableName + '.' + sqlField.key)
-            continue
-          }
-          qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
-          if (sqlField.selections) {
-            // Allowing the selections=["aaa", "bbb"] directive argument
-            qb.addSelect(sqlField.selections.map((s) => subtypeTableName + '.' + s))
-          } else {
-            this.selectFromFields(qb, field, fieldType, info)
-          }
-        }
-      } else {
-        qb.addSelect(tableName + '.' + sqlField.key)
-      }
-    }
-  }
 }
 
 function orderObjectsByList<OBJ, T>(objects: OBJ[], list: T[], key: string): OBJ[] {
@@ -255,11 +184,10 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
       const ids = propertyFieldName && source[propertyFieldName]
       let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
-      this.selectFromFields(
-        qb,
+      const selector = new Selector(qb, info, this.primaryFields, this.joinTable, this.tableNames)
+      selector.select(
         info.fieldNodes.find((f) => f.name.value === info.fieldName),
-        objectType,
-        info)
+        objectType)
 
       const primaryField = this.primaryFields.get(objectType.name)
 
@@ -272,13 +200,179 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
       qb = originalResolve(source, args, context, info)
       if (qb) {
         if (ids) {
-          return qb.getMany()
+          return selector.getMany()
             .then((objs: any) => orderObjectsByList(objs, ids, primaryField))
         } else {
-          return qb.getMany()
+          return selector.getMany()
         }
       } else {
         return null
+      }
+    }
+  }
+}
+
+export class Selector {
+  protected primaryFields: Map<string, string>
+  protected joinTable: Map<string, Map<string, ISQLField>>
+  protected tableNames: Map<string, string>
+
+  private qb: SelectQueryBuilder<any>
+  private info: GraphQLResolveInfo
+
+  private aggregated: Set<string> = new Set()
+
+  constructor(
+    qb: SelectQueryBuilder<any>,
+    info: GraphQLResolveInfo,
+    primaryFields: Map<string, string>,
+    joinTable: Map<string, Map<string, ISQLField>>,
+    tableNames: Map<string, string>) {
+    this.qb = qb
+    this.info = info
+    this.primaryFields = primaryFields
+    this.joinTable = joinTable
+    this.tableNames = tableNames
+  }
+
+  public async getOne(): Promise<any | undefined> {
+    const { entities, raw } = await this.qb.limit(1).getRawAndEntities()
+    if (entities.length === 0) {
+      return undefined
+    }
+    const entity = entities[0]
+    const r = raw[0]
+    for (const tableName of this.aggregated) {
+      entity[tableName] = r[tableName]
+    }
+    return entity
+  }
+
+  public async getMany(): Promise<any[]> {
+    const { entities, raw } = await this.qb.getRawAndEntities()
+    entities.forEach((entity, index) => {
+      const r = raw[index]
+      for (const tableName of this.aggregated) {
+        entity[tableName] = r[tableName]
+      }
+    })
+    return entities
+  }
+
+  public select(
+    fieldNode: FieldNode,
+    type: GraphQLObjectType) {
+    this.selectFromFields(fieldNode, type)
+    if (this.aggregated.size === 0) {
+      return
+    }
+    for (const alias of this.qb.expressionMap.aliases) {
+      if (this.aggregated.has(alias.name)) {
+        continue
+      }
+      for (const primary of alias.metadata.primaryColumns) {
+        this.qb.addGroupBy(alias.name + '.' + primary.propertyName)
+      }
+    }
+    if (this.aggregated.size > 0) {
+
+      const tableName = this.tableNames.get(type.name)
+      const primary = this.primaryFields.get(type.name)
+      const sqlField = this.joinTable.get(type.name).get(primary).key
+      this.qb.addGroupBy(tableName + '.' + sqlField)
+    }
+  }
+
+  protected selectJSONFields(
+    fieldNode: FieldNode,
+    type: GraphQLObjectType) {
+    const selectedFields: FieldNode[] = []
+    for (const selection of fieldNode.selectionSet.selections) {
+      this.spreadFields(selectedFields, selection)
+    }
+
+    const fieldTypes = type.getFields()
+    const tableName = this.tableNames.get(type.name)
+    const jsonFields = []
+    for (const field of selectedFields) {
+      const sqlField = this.joinTable.get(type.name).get(field.name.value)
+      if (!sqlField) {
+        continue
+      }
+
+      if (sqlField.relation) {
+        console.error('Does not support relation in toMany')
+      } else {
+        jsonFields.push(`'${sqlField.key}',"${tableName}"."${sqlField.key}"`)
+      }
+    }
+    this.qb.addSelect(`json_agg(json_build_object(${jsonFields.join(',')})) as ${tableName}`)
+    this.aggregated.add(tableName)
+  }
+
+  protected selectFromFields(
+    fieldNode: FieldNode,
+    type: GraphQLObjectType) {
+    const selectedFields: FieldNode[] = []
+    for (const selection of fieldNode.selectionSet.selections) {
+      this.spreadFields(selectedFields, selection)
+    }
+
+    const fieldTypes = type.getFields()
+    const tableName = this.tableNames.get(type.name)
+    for (const field of selectedFields) {
+      const sqlField = this.joinTable.get(type.name).get(field.name.value)
+      if (!sqlField) {
+        continue
+      }
+
+      if (sqlField.relation) {
+        if (sqlField.many) {
+          const fieldType = fieldTypes[field.name.value].type as GraphQLNonNull<
+            GraphQLList<GraphQLNonNull<GraphQLObjectType>>
+            >
+          const objectType = fieldType.ofType.ofType.ofType
+          const subtypeTableName = this.tableNames.get(objectType.name)
+          if (field.selectionSet.selections.length === 0) {
+            continue
+          }
+          this.qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
+          this.selectJSONFields(field, objectType)
+        } else {
+          // Has subfields
+          const fieldType = fieldTypes[field.name.value].type as GraphQLObjectType
+          const subtypeTableName = this.tableNames.get(fieldType.name)
+          if (field.selectionSet.selections.length === 0) {
+            continue
+          }
+          if (field.selectionSet.selections.length === 1 &&
+            (field.selectionSet.selections[0] as FieldNode).name.value === this.primaryFields.get(fieldType.name)) {
+            // Simplify query
+            this.qb.addSelect(tableName + '.' + sqlField.key)
+            continue
+          }
+          this.qb.leftJoin(tableName + '.' + sqlField.relationKey, subtypeTableName)
+          if (sqlField.selections) {
+            // Allowing the selections=["aaa", "bbb"] directive argument
+            this.qb.addSelect(sqlField.selections.map((s) => subtypeTableName + '.' + s))
+          } else {
+            this.selectFromFields(field, fieldType)
+          }
+        }
+      } else {
+        this.qb.addSelect(tableName + '.' + sqlField.key)
+      }
+    }
+  }
+
+  protected spreadFields(arr: FieldNode[], node: SelectionNode) {
+    if (node.kind === 'Field') {
+      const fieldNode = node as FieldNode
+      arr.push(fieldNode)
+    } else if (node.kind === 'FragmentSpread') {
+      const fragmentSpread = node as FragmentSpreadNode
+      for (const subSelection of this.info.fragments[fragmentSpread.name.value].selectionSet.selections) {
+        this.spreadFields(arr, subSelection)
       }
     }
   }

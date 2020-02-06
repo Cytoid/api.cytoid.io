@@ -132,7 +132,7 @@ export const resolvers = {
       const qb = context.queryBuilder
         .where({ ownerId: parent.id, published: true })
       if (args.first) {
-        qb.take(args.first)
+        qb.limit(args.first)
       }
       if (args.category === 'featured') {
         qb.andWhere("'featured'=ANY(levels.category)")
