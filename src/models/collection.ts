@@ -1,8 +1,9 @@
 import {
   Column, CreateDateColumn,
-  Entity, ObjectIdColumn, UpdateDateColumn,
-  ObjectID,
+  Entity, ObjectID, ObjectIdColumn,
+  UpdateDateColumn,
 } from 'typeorm'
+import ac from '../access'
 
 @Entity('collections')
 export default class Collection {
@@ -45,3 +46,12 @@ export default class Collection {
   @Column()
   public metadata: any
 }
+
+ac.grant('user')
+  .createOwn('collection')
+  .deleteOwn('collection')
+  .readOwn('collection')
+  .updateOwn('collection', ['uid', 'coverPath', 'title', 'slogan', 'description', 'levelIds', 'tags', 'state', 'metadata'])
+  .grant('moderator')
+  .readAny('collection')
+  .updateAny('collection')

@@ -129,6 +129,7 @@ export default class FileController extends BaseController {
     if (handler.callback) {
       return handler.callback(user, sessionData, info)
     }
+    return null
   }
   private getRedisKey(path: string) {
     return 'files:upload:' + path

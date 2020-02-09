@@ -10,13 +10,19 @@ type Email {
   verified: Boolean! @column
 }
 
+enum Role {
+  MODERATOR
+  ADMIN
+  USER
+}
+
 type User {
   id: ID! @column(primary: true)
   uid: String @column
   name: String @column
   email: Email @column(name: "email") @relation(name: "emails", field: "emailObj")
   registrationDate: Date @column
-  role: String! @column
+  role: Role! @column
   avatarURL: String! @column(name: "avatarPath")
 
   online: Boolean!
@@ -32,6 +38,9 @@ export const resolvers = {
     online(parent: User) {
       return redis.getAsync('onlinestatus:' + parent.id)
         .then((val) => val !== null)
+    },
+    role(parent: User) {
+      return parent.role.toUpperCase()
     },
   },
   Query: {

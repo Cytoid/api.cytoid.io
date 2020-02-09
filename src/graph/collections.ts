@@ -1,11 +1,11 @@
-import { UserInputError } from 'apollo-server-koa'
+import {Permission} from 'accesscontrol'
+import { AuthenticationError, ForbiddenError } from 'apollo-server-koa'
 import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
-import {Equal, getManager, Not, SelectQueryBuilder} from 'typeorm'
+import {getManager, SelectQueryBuilder} from 'typeorm'
 import Collection from '../models/collection'
-import { Level } from '../models/level'
-import User from '../models/user'
-
+import User, {IUser} from '../models/user'
+import ac from '../access'
 const datastore = getManager('data')
 const db = getManager()
 
@@ -19,15 +19,19 @@ extend type User {
   collections(first: Int): [CollectionUserListing!]!
 }
 
+input CollectionInput {
+  uid: String
+  coverPath: String
+  title: String
+  slogan: String
+  description: String
+  levels: [Int!]
+  tags: [String!]
+  state: ResourceState
+}
+
 extend type Mutation {
-  createCollection(
-    uid: String!
-    ownerId: ID!
-    coverPath: ID
-    title: String
-    slogan: String
-    description: String
-  ): Collection
+  updateCollection(id: ID!, input: CollectionInput!): CollectionUserListing
 }
 
 type CollectionUserListing {
@@ -100,6 +104,28 @@ export const resolvers = {
     },
   },
   Mutation: {
+    async updateCollection(parent: never, params: {id: string, input: any}, context: { user: IUser } ) {
+      if (!context.user) {
+        throw new AuthenticationError('Login Required')
+      }
+      const repo = datastore.getMongoRepository(Collection)
+      const collection = await repo.findOne(params.id)
+
+      let permission: Permission
+      if (collection.ownerId === context.user.id) {
+        permission = ac.can(context.user.role).updateOwn('collection')
+      } else {
+        permission = ac.can(context.user.role).updateAny('collection')
+      }
+
+      if (!permission.granted) {
+        throw new ForbiddenError('You do not have the permissions to update this collection.')
+      }
+
+      return repo.update(params.id, params.input)
+        .then((a) => repo.findOne(params.id))
+    },
+    /*
     createCollection(parent: never, collection: any, context: any, info: GraphQLResolveInfo) {
       return db.createQueryBuilder()
         .select('count(*)')
@@ -128,6 +154,7 @@ export const resolvers = {
           return datastore.save(newCollection)
         })
     },
+     */
   },
   Collection: {
     owner(

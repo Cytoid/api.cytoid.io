@@ -17,7 +17,7 @@ import passport, {
   authorizationChecker,
   currentUserChecker,
   OptionalAuthenticate,
-  useExternalAuth
+  useExternalAuth,
 } from './authentication'
 
 app.keys = [conf.secret]
@@ -73,10 +73,7 @@ import * as graph from './graph'
 const server = new ApolloServer({
   typeDefs: graph.typeDefs,
   resolvers: graph.resolvers,
-  schemaDirectives: {
-    toOne: SQLToOneJoiner,
-    toMany: SQLToManyJoiner,
-  },
+  schemaDirectives: graph.directives,
   tracing: true,
   engine: {
     apiKey: conf.graphQLKey,
@@ -85,7 +82,7 @@ const server = new ApolloServer({
   introspection: true,
   playground: true,
   context({ ctx }: { ctx: Koa.Context }) {
-    return { user: ctx.state.user }
+    return OptionalAuthenticate(ctx, () => Promise.resolve({ user: ctx.state.user }))
   },
 })
 server.applyMiddleware({

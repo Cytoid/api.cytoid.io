@@ -1,4 +1,5 @@
 import { SchemaDirectiveVisitor } from 'apollo-server-koa'
+import { gql } from 'apollo-server-koa'
 import {
   assertListType, assertNonNullType,
   assertObjectType, BooleanValueNode, FieldNode, FragmentSpreadNode,
@@ -17,6 +18,27 @@ interface ISQLField {
   selections?: string[]
   many: boolean
 }
+
+export const typeDefs = gql`directive @column(
+  name: String
+  primary: Boolean
+) on FIELD_DEFINITION
+
+directive @toOne(
+  name: String!
+  field: String
+) on FIELD_DEFINITION
+
+directive @toMany(
+  name: String!
+  field: String
+) on FIELD_DEFINITION
+
+directive @relation(
+  name: String!
+  field: String
+  select: [String!]
+) on FIELD_DEFINITION`
 
 export class SQLToOneJoiner extends SchemaDirectiveVisitor {
   public db = getManager()
