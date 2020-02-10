@@ -204,6 +204,9 @@ export class SQLToManyJoiner extends SQLToOneJoiner {
     const originalResolve = field.resolve
     field.resolve = (source: any, args: any, context: any, info: GraphQLResolveInfo) => {
       const ids = propertyFieldName && source[propertyFieldName]
+      if (ids && ids.length === 0) {
+        return []
+      }
       let qb: SelectQueryBuilder<any> = this.db.createQueryBuilder(tableName, tableName)
       qb.select([])
       const selector = new Selector(qb, info, this.primaryFields, this.joinTable, this.tableNames)

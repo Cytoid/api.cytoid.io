@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-koa'
 import {GraphQLResolveInfo} from 'graphql'
 import {SelectQueryBuilder} from 'typeorm'
 import {redis} from '../db'
-import User from '../models/user'
+import User, {IUser} from '../models/user'
 
 export const typeDefs = gql`
 type Email {
@@ -28,8 +28,11 @@ type User {
   online: Boolean!
 }
 
+type My
+
 extend type Query {
   user(id: ID, uid: String): User @toOne(name: "users")
+  my: My
 }
 `
 
@@ -64,6 +67,9 @@ export const resolvers = {
       } else {
         return null
       }
+    },
+    my(parent: never, args: never, context: { user: IUser }) {
+      return context.user
     },
   },
 }

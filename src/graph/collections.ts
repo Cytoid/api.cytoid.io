@@ -1,5 +1,5 @@
 import {Permission} from 'accesscontrol'
-import { AuthenticationError, ForbiddenError } from 'apollo-server-koa'
+import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-koa'
 import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
 import {getManager, SelectQueryBuilder} from 'typeorm'
@@ -19,6 +19,10 @@ extend type User {
   collections(first: Int): [CollectionUserListing!]!
 }
 
+extend type My {
+  collections: [CollectionUserListing!]!
+}
+
 input CollectionInput {
   uid: String
   coverPath: String
@@ -32,6 +36,7 @@ input CollectionInput {
 
 extend type Mutation {
   updateCollection(id: ID!, input: CollectionInput!): CollectionUserListing
+  createCollection(input: CollectionInput!): CollectionUserListing
 }
 
 type CollectionUserListing {
@@ -121,40 +126,55 @@ export const resolvers = {
       if (!permission.granted) {
         throw new ForbiddenError('You do not have the permissions to update this collection.')
       }
+      if (params.input.uid) {
+        const existingCollection = await datastore.getMongoRepository(Collection).findOne({ uid: params.input.uid })
+        if (existingCollection.id.toString() !== params.id) {
+          throw new UserInputError('UID duplicated')
+        }
+      }
+
 
       return repo.update(params.id, params.input)
         .then((a) => repo.findOne(params.id))
     },
-    /*
-    createCollection(parent: never, collection: any, context: any, info: GraphQLResolveInfo) {
-      return db.createQueryBuilder()
-        .select('count(*)')
-        .from(User, 'users')
-        .where('users.id=:id', { id: collection.ownerId })
-        .limit(1)
-        .execute()
-        .catch((error) => {
-          if (error.code === '22P02') {
-            throw new UserInputError('ownerId has to be a valid UUID', { ownerId: collection.ownerId })
-          }
-          throw error
-        })
-        .then((a) => {
-          if (parseInt(a[0].count, 10) === 0) {
-            throw new UserInputError('Can not find the user specified', { ownerId: collection.ownerId })
-          }
-          const newCollection =  datastore.create(Collection, {
-            uid: collection.uid,
-            title: collection.title || 'Untitled',
-            slogan: collection.slogan || '',
-            description: collection.description || '',
-            ownerId: collection.ownerId,
-            levelIds: [],
-          })
-          return datastore.save(newCollection)
-        })
+    async createCollection(parent: never, params: {input: any}, context: { user: IUser }, info: GraphQLResolveInfo) {
+      if (!context.user) {
+        throw new AuthenticationError('Login required')
+      }
+      const permission: Permission = ac.can(context.user.role).createOwn('collection')
+      if (!permission.granted) {
+        throw new ForbiddenError('You do not have the permissions to create a collection.')
+      }
+      if (!params.input.uid) {
+        throw new UserInputError('UID is required')
+      }
+      const existingCollection = await datastore.getMongoRepository(Collection).findOne({ uid: params.input.uid })
+      if (existingCollection) {
+        throw new UserInputError(`Collection with UID ${params.input.uid} already exist`)
+      }
+      const newCollection =  datastore.create(Collection, {
+        uid: params.input.uid,
+        title: params.input.title || 'Untitled',
+        slogan: params.input.slogan || '',
+        description: params.input.description || '',
+        ownerId: context.user.id,
+        levelIds: params.input.levelIds || [],
+        coverPath: params.input.coverPath,
+        state: 'PUBLIC',
+        tags: params.input.tags || [],
+        metadata: {},
+      })
+      return datastore.save(newCollection)
     },
-     */
+  },
+  My: {
+    collections(parent: IUser): Promise<Collection[]> {
+      return datastore.getMongoRepository(Collection).find({
+        where: {
+          ownerId: parent.id,
+        },
+      })
+    },
   },
   Collection: {
     owner(
