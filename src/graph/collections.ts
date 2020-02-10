@@ -2,16 +2,19 @@ import {Permission} from 'accesscontrol'
 import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-koa'
 import { gql } from 'apollo-server-koa'
 import { GraphQLResolveInfo} from 'graphql'
+import { ObjectID } from 'mongodb'
 import {getManager, SelectQueryBuilder} from 'typeorm'
+import ac from '../access'
 import Collection from '../models/collection'
 import User, {IUser} from '../models/user'
-import ac from '../access'
 const datastore = getManager('data')
 const db = getManager()
 
 export const typeDefs = gql`
 extend type Query {
+  collectionsCount: Int!
   collection(id: ID, uid: String): Collection
+  collections(limit: Int, cursor: ID): [Collection!]!
 }
 
 extend type User {
@@ -74,6 +77,44 @@ type Collection {
 
 export const resolvers = {
   Query: {
+    collectionsCount() {
+      return datastore.getMongoRepository(Collection).count({
+        state: 'PUBLIC',
+      })
+    },
+    collections(parent: never, { limit, cursor }: { limit: number, cursor: string}): Promise<Collection[]> {
+      if (!limit) {
+        limit = 24
+      }
+      if (limit < 1) {
+        limit = 1
+      }
+      if (limit > 48) {
+        limit = 4
+      }
+      const repo = datastore.getMongoRepository(Collection)
+      if (cursor) {
+        return repo.find({
+          where: {
+            state: 'PUBLIC',
+            _id: { $gt: ObjectID.createFromHexString(cursor) },
+          },
+          take: limit,
+          order: {
+            id: 'ASC',
+          },
+        })
+      }
+      return repo.find({
+        where: {
+          state: 'PUBLIC',
+        },
+        take: limit,
+        order: {
+          id: 'ASC',
+        },
+      })
+    },
     collection(
       parent: never,
       { id, uid }: {
@@ -132,8 +173,6 @@ export const resolvers = {
           throw new UserInputError('UID duplicated')
         }
       }
-
-
       return repo.update(params.id, params.input)
         .then((a) => repo.findOne(params.id))
     },
