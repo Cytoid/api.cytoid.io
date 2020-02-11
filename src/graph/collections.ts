@@ -32,7 +32,7 @@ input CollectionInput {
   title: String
   slogan: String
   description: String
-  levels: [Int!]
+  levelIds: [Int!]
   tags: [String!]
   state: ResourceState
 }
