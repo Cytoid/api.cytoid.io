@@ -46,7 +46,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
         throw new BadRequestError(`Uploaded package ${packageMeta.id} but requires ${info.replaceUID}`)
       }
       const oldLevel = await db.findOne(Level,{
-        select: ['ownerId'],
+        select: ['ownerId', 'version'],
         where: { uid: info.replaceUID },
       })
       const access = ac.can(user.role)
@@ -58,10 +58,13 @@ const LevelUploadHandler: IFileUploadHandler =  {
       if (!granted) {
         throw new ForbiddenError("You don't have the permission to replace this level")
       }
+      if (oldLevel.version > packageMeta.version) {
+        throw new BadRequestError(`The new level (version ${packageMeta.version}) is older than the current level (version ${oldLevel.version})`)
+      }
     }
     level.uid = packageMeta.id
-    level.version = packageMeta.version || 1
-    level.title = packageMeta.title || ''
+    level.version = packageMeta.version
+    level.title = packageMeta.title
     level.metadata = {
       title: packageMeta.title,
       title_localized: packageMeta.title_localized,
