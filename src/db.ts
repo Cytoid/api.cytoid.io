@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import { createConnection } from 'typeorm'
+import {PostgresConnectionOptions} from 'typeorm/driver/postgres/PostgresConnectionOptions'
 import {promisify} from 'util'
 import registerDBTypes from './db-types'
 
@@ -9,10 +10,14 @@ import * as models from './models'
 import * as mongoModels from './models/mongo'
 
 export const database = createConnection({
+  type: 'postgres',
   name: 'default',
   ...conf.postgres,
   entities: Object.values(models),
   logging: process.env.NODE_ENV === 'production' ? ['info'] : true,
+  poolErrorHandler(err) {
+    console.warn('postgres connection failed...', err)
+  },
 })
 export const mongo = createConnection({
   name: 'data',

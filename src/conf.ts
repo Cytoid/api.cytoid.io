@@ -1,6 +1,6 @@
 import { IConfig } from 'config'
 import { ClientOpts } from 'redis'
-import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions'
+import {PostgresConnectionOptions} from 'typeorm/driver/postgres/PostgresConnectionOptions'
 import { IClient as IEmailClient } from './utils/mail'
 
 interface IKeyPair {
@@ -10,7 +10,7 @@ interface IKeyPair {
 export interface IAppConfiguration extends IConfig {
   host: string
   port: number
-  postgres: ConnectionOptions
+  postgres: PostgresConnectionOptions
   mongo: string
   graphQLKey: string
   redis: ClientOpts
