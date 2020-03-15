@@ -143,7 +143,7 @@ export class Chart {
   @Exclude()
   public checksum: string
 
-  @Column({ select: false })
+  @Column('bytea', { select: false })
   @Exclude()
   public hash: Buffer
 }

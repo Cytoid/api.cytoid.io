@@ -8,9 +8,11 @@ steps:
   - "--location=global"
   - "--keyring=CytoidIO"
   - "--key=SecretKey"
-- name: "gcr.io/cloud-builders/yarn"
+- name: "node:current"
+  entrypoint: yarn
   args: ['install']
-- name: "gcr.io/cloud-builders/yarn"
+- name: "node:current"
+  entrypoint: yarn
   args: ['build']
 - name: 'gcr.io/cloud-builders/gcloud'
   args: ['app', 'deploy']
