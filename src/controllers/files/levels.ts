@@ -115,6 +115,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
       entity.level = level
       entity.notesCount = chart.notesCount
       entity.checksum = chart.checksum
+      entity.hash = Buffer.from(chart.hash, 'hex')
       return entity
     })
 
@@ -174,6 +175,7 @@ namespace PackageMeta {
     difficulty: number
     notesCount: number
     checksum: string
+    hash: string
   }
 
   export interface IResource {

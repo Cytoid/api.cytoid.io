@@ -142,6 +142,10 @@ export class Chart {
   @Column({ nullable: false, select: false })
   @Exclude()
   public checksum: string
+
+  @Column({ select: false })
+  @Exclude()
+  public hash: Buffer
 }
 
 @Entity ('level_ratings')
