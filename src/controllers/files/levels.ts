@@ -135,6 +135,7 @@ const LevelUploadHandler: IFileUploadHandler =  {
           .values(charts)
           .onConflict('("levelId", "type") DO UPDATE SET ' +
             'difficulty=EXCLUDED.difficulty,' +
+            'hash=EXCLUDED.hash,' +
             'name=EXCLUDED.name,' +
             '"notesCount"=EXCLUDED."notesCount",' +
             'checksum=EXCLUDED.checksum')
