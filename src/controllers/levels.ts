@@ -361,7 +361,7 @@ export default class LevelController extends BaseController {
     if (pageLimit === 0) {
       return null
     }
-    ctx.set('X-Total-Page', Math.floor(count / pageLimit).toString())
+    ctx.set('X-Total-Page', Math.ceil(count / pageLimit).toString())
     ctx.set('X-Current-Page', pageNum.toString())
     return query.getRawAndEntities()
       .then(({entities, raw}) => {
