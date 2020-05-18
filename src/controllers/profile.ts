@@ -118,11 +118,11 @@ group by grade;`, [uuid])
       .execute()
       .then((results) => {
         const activities = results[0]
-        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
-        activities.cleared_notes = parseInt(activities.cleared_notes, 10)
-        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10)
-        activities.total_ranked_score = parseInt(activities.total_ranked_score, 10)
-        activities.average_ranked_accuracy = parseFloat(activities.average_ranked_accuracy)
+        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10) || 0
+        activities.cleared_notes = parseInt(activities.cleared_notes, 10) || 0
+        activities.total_ranked_plays = parseInt(activities.total_ranked_plays, 10) || 0
+        activities.total_ranked_score = parseInt(activities.total_ranked_score, 10) || 0
+        activities.average_ranked_accuracy = parseFloat(activities.average_ranked_accuracy) || 0
         return activities
       })
 
