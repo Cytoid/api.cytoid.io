@@ -1,6 +1,8 @@
 runtime: nodejs10
 instance_class: F1
 service: api
+vpc_access_connector:
+  name: "projects/cytoid/locations/us-central1/connectors/appengine"
 automatic_scaling:
   target_cpu_utilization: 0.8
   target_throughput_utilization: 0.9
