@@ -4,7 +4,7 @@
   "dependencies": {
     "@google-cloud/storage": "^2.4.2",
     "accesscontrol": "^2.2.1",
-    "apollo-server-koa": "^2.9.16",
+    "apollo-server-koa": "^2.14.2",
     "axios": "^0.18.0",
     "config": "^3.0.1",
     "connect-redis": "^3.4.0",
